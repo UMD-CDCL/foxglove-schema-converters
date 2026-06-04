@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 from pathlib import Path
 import re
+import os
 import sys
 from collections import defaultdict
 
@@ -12,6 +13,14 @@ TEXT_NAME_HINTS = ("transcript", "caption", "text", "description", "label", "sta
 AUDIO_BYTE_FIELD_NAMES = {"raw_audio", "audio", "audio_data"}
 POLYGON_LOCATION_FIELD_HINTS = ("polygon", "fence", "domain", "zone", "boundary", "bounds", "perimeter")
 MAX_NESTING_DEPTH = 3
+
+# Optional workaround for Foxglove Map layer color overriding GeoJSON feature colors.
+# When set, only GeoJSON fields whose full field path matches this regex are generated.
+# Examples:
+#   CDCL_GEOJSON_FIELD_REGEX=target_location_altimeter_plane
+#   CDCL_GEOJSON_FIELD_REGEX=target_location_gimbal_plane
+#   CDCL_GEOJSON_FIELD_REGEX=target_location_rangefinder
+GEOJSON_FIELD_REGEX = os.environ.get("CDCL_GEOJSON_FIELD_REGEX", "target_location_altimeter_plane")
 
 FIELD_COLORS = [
     "#e6194b",
@@ -320,6 +329,8 @@ def generate_ts(converters: list[dict[str, str]]) -> str:
 
     for item in converters:
         if item["to_schema"] == "foxglove_msgs/msg/GeoJSON":
+            if GEOJSON_FIELD_REGEX is not None and re.search(GEOJSON_FIELD_REGEX, item["field"]) is None:
+                continue
             geojson_by_schema[item["from_schema"]].append(item)
         else:
             non_geojson.append(item)
@@ -447,15 +458,23 @@ function navSatFixToCoordinates(fix: AnyMessage): number[] {{
 
 function geoJsonStyle(color: string): AnyMessage {{
   return {{
-    color,
-    fill: color,
-    stroke: color,
-    markerColor: color,
     "marker-color": color,
-    "stroke": color,
-    "fill": color,
-    "fill-opacity": 0.25,
-    "stroke-width": 3,
+    "marker-size": "large",
+    "marker-symbol": "circle",
+    "stroke-width": 4,
+    "stroke-opacity": 1.0,
+    "fill-opacity": 0.35,
+    color,
+    markerColor: color,
+    strokeColor: color,
+    fillColor: color,
+    fillOpacity: 0.35,
+    strokeWidth: 4,
+    strokeOpacity: 1.0,
+    radius: 8,
+    opacity: 1.0,
+    stroke: color,
+    fill: color,
   }};
 }}
 
