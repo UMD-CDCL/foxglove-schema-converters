@@ -2,6 +2,7 @@
 from pathlib import Path
 import re
 import sys
+from collections import defaultdict
 
 MSG_ROOT = Path(sys.argv[1]) if len(sys.argv) > 1 else Path("/ros_ws/src/cdcl_umd_msgs/msg")
 OUT_FILE = Path(sys.argv[2]) if len(sys.argv) > 2 else Path("cdcl-schema-converters/src/generatedSchemaConverters.ts")
@@ -11,6 +12,27 @@ TEXT_NAME_HINTS = ("transcript", "caption", "text", "description", "label", "sta
 AUDIO_BYTE_FIELD_NAMES = {"raw_audio", "audio", "audio_data"}
 POLYGON_LOCATION_FIELD_HINTS = ("polygon", "fence", "domain", "zone", "boundary", "bounds", "perimeter")
 MAX_NESTING_DEPTH = 3
+
+FIELD_COLORS = [
+    "#e6194b",
+    "#3cb44b",
+    "#4363d8",
+    "#f58231",
+    "#911eb4",
+    "#46f0f0",
+    "#f032e6",
+    "#bcf60c",
+    "#fabebe",
+    "#008080",
+    "#e6beff",
+    "#9a6324",
+    "#fffac8",
+    "#800000",
+    "#aaffc3",
+    "#808000",
+    "#ffd8b1",
+    "#000075",
+]
 
 SCALAR_CONVERTIBLE_TYPES = {
     "sensor_msgs/Image": "image",
@@ -78,6 +100,13 @@ def sanitize_identifier(value: str) -> str:
 def converter_name(msg_name: str, field_path: str, target: str) -> str:
     field_part = sanitize_identifier(field_path.replace(".", "__"))
     return f"{sanitize_identifier(msg_name)}__{field_part}__to__{sanitize_identifier(target)}"
+
+
+def stable_color(value: str) -> str:
+    total = 0
+    for char in value:
+        total = (total * 31 + ord(char)) % 1000003
+    return FIELD_COLORS[total % len(FIELD_COLORS)]
 
 
 def parse_msg(path: Path) -> list[tuple[str, str]]:
@@ -161,6 +190,7 @@ def make_result(
         "cardinality": cardinality,
         "converter": converter_name(msg_name, field_path, target),
         "to_schema": schema_name,
+        "color": stable_color(f"{msg_name}.{field_path}.{target}"),
     }
 
 
@@ -172,8 +202,6 @@ def infer_field(
     depth: int,
     parent_is_array: bool = False,
 ) -> list[dict[str, str]]:
-    results = []
-
     base_type, is_array = parse_field_type(field_type)
     effective_is_array = parent_is_array or is_array
     cardinality = "array" if effective_is_array else "scalar"
@@ -194,8 +222,9 @@ def infer_field(
     nested_msg_name = local_type_name(base_type)
 
     if depth >= MAX_NESTING_DEPTH or nested_msg_name not in msg_index:
-        return results
+        return []
 
+    results = []
     for nested_type, nested_name in msg_index[nested_msg_name]:
         nested_path = f"{field_path}.{nested_name}"
         results.extend(
@@ -237,27 +266,45 @@ def ts_string(value: str) -> str:
     return '"' + value.replace("\\", "\\\\").replace('"', '\\"') + '"'
 
 
-def generate_ts(converters: list[dict[str, str]]) -> str:
-    registrations = []
+def ts_array(values: list[str]) -> str:
+    return "[" + ", ".join(ts_string(value) for value in values) + "]"
 
-    for item in converters:
-        field_parts = item["field"].split(".")
-        field_parts_ts = "[" + ", ".join(ts_string(part) for part in field_parts) + "]"
 
-        if item["target"] in {"location", "location_array", "polygon"}:
-            converter_expr = (
-                f"convertGeoJson(message, event, {field_parts_ts}, "
-                f"{ts_string(item['target'])}, {ts_string(item['field'])})"
-            )
-        elif item["target"] == "audio":
-            converter_expr = f"convertRawAudio(message, event, {field_parts_ts})"
-        elif item["target"] == "text":
-            converter_expr = f"convertTextLog(message, event, {field_parts_ts}, {ts_string(item['field'])})"
-        else:
-            converter_expr = f"convertPassThrough(message, event, {field_parts_ts}, {ts_string(item['target'])})"
+def generate_geojson_registration(from_schema: str, items: list[dict[str, str]]) -> str:
+    fields = []
+    for item in items:
+        fields.append(
+            "{ "
+            f"path: {ts_array(item['field'].split('.'))}, "
+            f"mode: {ts_string(item['target'])}, "
+            f"field: {ts_string(item['field'])}, "
+            f"color: {ts_string(item['color'])}"
+            " }"
+        )
 
-        registrations.append(
-            f"""  // {item['converter']}
+    field_configs = "[\n      " + ",\n      ".join(fields) + "\n    ]"
+
+    return f"""  // Aggregated GeoJSON converter for {from_schema}
+  extensionContext.registerMessageConverter({{
+    type: "schema",
+    fromSchemaName: {ts_string(from_schema)},
+    toSchemaName: "foxglove_msgs/msg/GeoJSON",
+    converter: (message: Immutable<unknown>, event: Immutable<MessageEvent<unknown>>) =>
+      convertGeoJsonFields(message, event, {field_configs}),
+  }});"""
+
+
+def generate_field_registration(item: dict[str, str]) -> str:
+    field_parts_ts = ts_array(item["field"].split("."))
+
+    if item["target"] == "audio":
+        converter_expr = f"convertRawAudio(message, event, {field_parts_ts})"
+    elif item["target"] == "text":
+        converter_expr = f"convertTextLog(message, event, {field_parts_ts}, {ts_string(item['field'])})"
+    else:
+        converter_expr = f"convertPassThrough(message, event, {field_parts_ts}, {ts_string(item['target'])})"
+
+    return f"""  // {item['converter']}
   extensionContext.registerMessageConverter({{
     type: "schema",
     fromSchemaName: {ts_string(item['from_schema'])},
@@ -265,7 +312,25 @@ def generate_ts(converters: list[dict[str, str]]) -> str:
     converter: (message: Immutable<unknown>, event: Immutable<MessageEvent<unknown>>) =>
       {converter_expr},
   }});"""
-        )
+
+
+def generate_ts(converters: list[dict[str, str]]) -> str:
+    geojson_by_schema: dict[str, list[dict[str, str]]] = defaultdict(list)
+    non_geojson = []
+
+    for item in converters:
+        if item["to_schema"] == "foxglove_msgs/msg/GeoJSON":
+            geojson_by_schema[item["from_schema"]].append(item)
+        else:
+            non_geojson.append(item)
+
+    registrations = []
+
+    for from_schema in sorted(geojson_by_schema):
+        registrations.append(generate_geojson_registration(from_schema, geojson_by_schema[from_schema]))
+
+    for item in non_geojson:
+        registrations.append(generate_field_registration(item))
 
     return f"""// This file is generated by scripts/generate_schema_converters.py.
 // Do not edit by hand.
@@ -275,6 +340,12 @@ import {{ ExtensionContext, Immutable, MessageEvent }} from "@foxglove/extension
 type AnyMessage = Record<string, unknown>;
 type FoxgloveTime = {{ sec: number; nsec: number }};
 type RosTime = {{ sec: number; nanosec: number }};
+type GeoJsonFieldConfig = {{
+  path: readonly string[];
+  mode: "location" | "location_array" | "polygon";
+  field: string;
+  color: string;
+}};
 
 const AUDIO_FORMAT = "pcm-s16";
 const AUDIO_SAMPLE_RATE = 48000;
@@ -324,6 +395,12 @@ function getValuesAtPath(value: unknown, path: readonly string[]): unknown[] {{
     return Array.isArray(value) ? value : [value];
   }}
 
+  const [head, ...tail] = path;
+
+  if (head == undefined) {{
+    return [];
+  }}
+
   if (Array.isArray(value)) {{
     return value.flatMap((entry) => getValuesAtPath(entry, path));
   }}
@@ -333,7 +410,6 @@ function getValuesAtPath(value: unknown, path: readonly string[]): unknown[] {{
     return [];
   }}
 
-  const [head, ...tail] = path;
   return getValuesAtPath(objectValue[head], tail);
 }}
 
@@ -369,6 +445,32 @@ function navSatFixToCoordinates(fix: AnyMessage): number[] {{
   return coordinates;
 }}
 
+function geoJsonStyle(color: string): AnyMessage {{
+  return {{
+    color,
+    fill: color,
+    stroke: color,
+    markerColor: color,
+    "marker-color": color,
+    "stroke": color,
+    "fill": color,
+    "fill-opacity": 0.25,
+    "stroke-width": 3,
+  }};
+}}
+
+function geoJsonProperties(config: GeoJsonFieldConfig, event: Immutable<MessageEvent<unknown>>, index?: number): AnyMessage {{
+  return {{
+    ...geoJsonStyle(config.color),
+    name: index == undefined ? config.field : `${{config.field}} ${{index}}`,
+    field: config.field,
+    mode: config.mode,
+    index,
+    source_topic: event.topic,
+    color: config.color,
+  }};
+}}
+
 function emptyFeatureCollection(event: Immutable<MessageEvent<unknown>>): unknown {{
   return {{
     timestamp: eventTime(event),
@@ -380,55 +482,71 @@ function emptyFeatureCollection(event: Immutable<MessageEvent<unknown>>): unknow
   }};
 }}
 
-function convertGeoJson(
+function convertGeoJsonFields(
   message: Immutable<unknown>,
   event: Immutable<MessageEvent<unknown>>,
-  path: readonly string[],
-  mode: string,
-  fieldLabel: string,
+  configs: readonly GeoJsonFieldConfig[],
 ): unknown {{
-  const fixes = getValuesAtPath(message, path).filter(isValidNavSatFix);
+  const features: unknown[] = [];
+  let frameId = "";
 
-  if (fixes.length === 0) {{
-    return emptyFeatureCollection(event);
-  }}
+  for (const config of configs) {{
+    const fixes = getValuesAtPath(message, config.path).filter(isValidNavSatFix);
 
-  const frameId =
-    String(asObject(fixes[0])?.header != undefined ? asObject(asObject(fixes[0])?.header)?.frame_id ?? "" : "");
+    if (fixes.length === 0) {{
+      continue;
+    }}
 
-  if (mode === "polygon") {{
-    const ring = fixes.map(navSatFixToCoordinates);
+    if (frameId.length === 0) {{
+      const header = asObject(asObject(fixes[0])?.header);
+      frameId = String(header?.frame_id ?? "");
+    }}
 
-    if (ring.length > 0) {{
+    if (config.mode === "polygon") {{
+      const ring = fixes.map(navSatFixToCoordinates);
       const first = ring[0];
       const last = ring[ring.length - 1];
 
-      if (first[0] !== last[0] || first[1] !== last[1]) {{
-        ring.push([...first]);
+      if (first != undefined && last != undefined) {{
+        if (first[0] !== last[0] || first[1] !== last[1]) {{
+          ring.push([...first]);
+        }}
       }}
+
+      if (ring.length >= 4) {{
+        features.push({{
+          type: "Feature",
+          geometry: {{
+            type: "Polygon",
+            coordinates: [ring],
+          }},
+          properties: geoJsonProperties(config, event),
+        }});
+      }}
+
+      continue;
     }}
 
-    return {{
-      timestamp: eventTime(event),
-      frame_id: frameId,
-      geojson: JSON.stringify({{
-        type: "FeatureCollection",
-        features: [
-          {{
-            type: "Feature",
-            geometry: {{
-              type: "Polygon",
-              coordinates: [ring],
-            }},
-            properties: {{
-              name: fieldLabel,
-              field: fieldLabel,
-              source_topic: event.topic,
-            }},
-          }},
-        ],
-      }}),
-    }};
+    fixes.forEach((fix, index) => {{
+      const objectFix = fix as AnyMessage;
+      features.push({{
+        type: "Feature",
+        geometry: {{
+          type: "Point",
+          coordinates: navSatFixToCoordinates(objectFix),
+        }},
+        properties: {{
+          ...geoJsonProperties(config, event, index),
+          latitude: objectFix.latitude,
+          longitude: objectFix.longitude,
+          altitude: objectFix.altitude,
+        }},
+      }});
+    }});
+  }}
+
+  if (features.length === 0) {{
+    return emptyFeatureCollection(event);
   }}
 
   return {{
@@ -436,25 +554,7 @@ function convertGeoJson(
     frame_id: frameId,
     geojson: JSON.stringify({{
       type: "FeatureCollection",
-      features: fixes.map((fix, index) => {{
-        const objectFix = fix as AnyMessage;
-        return {{
-          type: "Feature",
-          geometry: {{
-            type: "Point",
-            coordinates: navSatFixToCoordinates(objectFix),
-          }},
-          properties: {{
-            name: `${{fieldLabel}} ${{index}}`,
-            field: fieldLabel,
-            index,
-            source_topic: event.topic,
-            latitude: objectFix.latitude,
-            longitude: objectFix.longitude,
-            altitude: objectFix.altitude,
-          }},
-        }};
-      }}),
+      features,
     }}),
   }};
 }}
@@ -558,10 +658,15 @@ def main() -> None:
     for msg_name in sorted(msg_index):
         converters.extend(infer_convertibles(msg_name, msg_index[msg_name], msg_index))
 
+    geojson_groups = len({item["from_schema"] for item in converters if item["to_schema"] == "foxglove_msgs/msg/GeoJSON"})
+    non_geojson_count = sum(1 for item in converters if item["to_schema"] != "foxglove_msgs/msg/GeoJSON")
+
     OUT_FILE.parent.mkdir(parents=True, exist_ok=True)
     OUT_FILE.write_text(generate_ts(converters))
 
-    print(f"Generated {len(converters)} schema converters")
+    print(f"Found {len(converters)} convertible fields")
+    print(f"Generated {geojson_groups} aggregated GeoJSON schema converters")
+    print(f"Generated {non_geojson_count} non-GeoJSON schema converters")
     print(f"Wrote {OUT_FILE}")
 
 

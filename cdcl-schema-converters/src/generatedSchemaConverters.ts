@@ -6,6 +6,12 @@ import { ExtensionContext, Immutable, MessageEvent } from "@foxglove/extension";
 type AnyMessage = Record<string, unknown>;
 type FoxgloveTime = { sec: number; nsec: number };
 type RosTime = { sec: number; nanosec: number };
+type GeoJsonFieldConfig = {
+  path: readonly string[];
+  mode: "location" | "location_array" | "polygon";
+  field: string;
+  color: string;
+};
 
 const AUDIO_FORMAT = "pcm-s16";
 const AUDIO_SAMPLE_RATE = 48000;
@@ -105,6 +111,29 @@ function navSatFixToCoordinates(fix: AnyMessage): number[] {
   return coordinates;
 }
 
+function geoJsonStyle(color: string): AnyMessage {
+  return {
+    color,
+    markerColor: color,
+    stroke: color,
+    fill: color,
+    fillOpacity: 0.25,
+    strokeWidth: 3,
+  };
+}
+
+function geoJsonProperties(config: GeoJsonFieldConfig, event: Immutable<MessageEvent<unknown>>, index?: number): AnyMessage {
+  return {
+    ...geoJsonStyle(config.color),
+    name: index == undefined ? config.field : `${config.field} ${index}`,
+    field: config.field,
+    mode: config.mode,
+    index,
+    source_topic: event.topic,
+    color: config.color,
+  };
+}
+
 function emptyFeatureCollection(event: Immutable<MessageEvent<unknown>>): unknown {
   return {
     timestamp: eventTime(event),
@@ -116,59 +145,71 @@ function emptyFeatureCollection(event: Immutable<MessageEvent<unknown>>): unknow
   };
 }
 
-function convertGeoJson(
+function convertGeoJsonFields(
   message: Immutable<unknown>,
   event: Immutable<MessageEvent<unknown>>,
-  path: readonly string[],
-  mode: string,
-  fieldLabel: string,
+  configs: readonly GeoJsonFieldConfig[],
 ): unknown {
-  const fixes = getValuesAtPath(message, path).filter(isValidNavSatFix);
+  const features: unknown[] = [];
+  let frameId = "";
 
-  if (fixes.length === 0) {
-    return emptyFeatureCollection(event);
+  for (const config of configs) {
+    const fixes = getValuesAtPath(message, config.path).filter(isValidNavSatFix);
+
+    if (fixes.length === 0) {
+      continue;
+    }
+
+    if (frameId.length === 0) {
+      const header = asObject(asObject(fixes[0])?.header);
+      frameId = String(header?.frame_id ?? "");
+    }
+
+    if (config.mode === "polygon") {
+      const ring = fixes.map(navSatFixToCoordinates);
+      const first = ring[0];
+      const last = ring[ring.length - 1];
+
+      if (first != undefined && last != undefined) {
+        if (first[0] !== last[0] || first[1] !== last[1]) {
+          ring.push([...first]);
+        }
+      }
+
+      if (ring.length >= 4) {
+        features.push({
+          type: "Feature",
+          geometry: {
+            type: "Polygon",
+            coordinates: [ring],
+          },
+          properties: geoJsonProperties(config, event),
+        });
+      }
+
+      continue;
+    }
+
+    fixes.forEach((fix, index) => {
+      const objectFix = fix as AnyMessage;
+      features.push({
+        type: "Feature",
+        geometry: {
+          type: "Point",
+          coordinates: navSatFixToCoordinates(objectFix),
+        },
+        properties: {
+          ...geoJsonProperties(config, event, index),
+          latitude: objectFix.latitude,
+          longitude: objectFix.longitude,
+          altitude: objectFix.altitude,
+        },
+      });
+    });
   }
 
-  const frameId =
-    String(asObject(fixes[0])?.header != undefined ? asObject(asObject(fixes[0])?.header)?.frame_id ?? "" : "");
-
-  if (mode === "polygon") {
-    const ring = fixes.map(navSatFixToCoordinates);
-
-    const first = ring[0];
-    const last = ring[ring.length - 1];
-
-    if (first != undefined && last != undefined) {
-      if (first[0] !== last[0] || first[1] !== last[1]) {
-        ring.push([...first]);
-      }
-    }
-
-    if (ring.length < 4) {
-      return emptyFeatureCollection(event);
-    }
-
-    return {
-      timestamp: eventTime(event),
-      frame_id: frameId,
-      geojson: JSON.stringify({
-        type: "FeatureCollection",
-        features: [
-          {
-            type: "Feature",
-            geometry: {
-              type: "Polygon",
-              coordinates: [ring],
-            },
-            properties: {
-              name: fieldLabel,
-              field: fieldLabel,
-              source_topic: event.topic,
-            },
-          },
-        ],
-      }),
-    };
+  if (features.length === 0) {
+    return emptyFeatureCollection(event);
   }
 
   return {
@@ -176,25 +217,7 @@ function convertGeoJson(
     frame_id: frameId,
     geojson: JSON.stringify({
       type: "FeatureCollection",
-      features: fixes.map((fix, index) => {
-        const objectFix = fix as AnyMessage;
-        return {
-          type: "Feature",
-          geometry: {
-            type: "Point",
-            coordinates: navSatFixToCoordinates(objectFix),
-          },
-          properties: {
-            name: `${fieldLabel} ${index}`,
-            field: fieldLabel,
-            index,
-            source_topic: event.topic,
-            latitude: objectFix.latitude,
-            longitude: objectFix.longitude,
-            altitude: objectFix.altitude,
-          },
-        };
-      }),
+      features,
     }),
   };
 }
@@ -283,21 +306,181 @@ function convertPassThrough(
 }
 
 export function registerGeneratedSchemaConverters(extensionContext: ExtensionContext): void {
-  // Assessment__location__to__location
+  // Aggregated GeoJSON converter for cdcl_umd_msgs/msg/Assessment
   extensionContext.registerMessageConverter({
     type: "schema",
     fromSchemaName: "cdcl_umd_msgs/msg/Assessment",
     toSchemaName: "foxglove_msgs/msg/GeoJSON",
     converter: (message: Immutable<unknown>, event: Immutable<MessageEvent<unknown>>) =>
-      convertGeoJson(message, event, ["location"], "location", "location"),
+      convertGeoJsonFields(message, event, [
+      { path: ["location"], mode: "location", field: "location", color: "#800000" }
+    ]),
   });
-  // CameraFOV__fov_polygon__to__polygon
+  // Aggregated GeoJSON converter for cdcl_umd_msgs/msg/CameraFOV
   extensionContext.registerMessageConverter({
     type: "schema",
     fromSchemaName: "cdcl_umd_msgs/msg/CameraFOV",
     toSchemaName: "foxglove_msgs/msg/GeoJSON",
     converter: (message: Immutable<unknown>, event: Immutable<MessageEvent<unknown>>) =>
-      convertGeoJson(message, event, ["fov_polygon"], "polygon", "fov_polygon"),
+      convertGeoJsonFields(message, event, [
+      { path: ["fov_polygon"], mode: "polygon", field: "fov_polygon", color: "#008080" }
+    ]),
+  });
+  // Aggregated GeoJSON converter for cdcl_umd_msgs/msg/CasualtyImage
+  extensionContext.registerMessageConverter({
+    type: "schema",
+    fromSchemaName: "cdcl_umd_msgs/msg/CasualtyImage",
+    toSchemaName: "foxglove_msgs/msg/GeoJSON",
+    converter: (message: Immutable<unknown>, event: Immutable<MessageEvent<unknown>>) =>
+      convertGeoJsonFields(message, event, [
+      { path: ["position"], mode: "location", field: "position", color: "#4363d8" }
+    ]),
+  });
+  // Aggregated GeoJSON converter for cdcl_umd_msgs/msg/CasualtyImageCompressed
+  extensionContext.registerMessageConverter({
+    type: "schema",
+    fromSchemaName: "cdcl_umd_msgs/msg/CasualtyImageCompressed",
+    toSchemaName: "foxglove_msgs/msg/GeoJSON",
+    converter: (message: Immutable<unknown>, event: Immutable<MessageEvent<unknown>>) =>
+      convertGeoJsonFields(message, event, [
+      { path: ["position"], mode: "location", field: "position", color: "#ffd8b1" }
+    ]),
+  });
+  // Aggregated GeoJSON converter for cdcl_umd_msgs/msg/CasualtyLocation
+  extensionContext.registerMessageConverter({
+    type: "schema",
+    fromSchemaName: "cdcl_umd_msgs/msg/CasualtyLocation",
+    toSchemaName: "foxglove_msgs/msg/GeoJSON",
+    converter: (message: Immutable<unknown>, event: Immutable<MessageEvent<unknown>>) =>
+      convertGeoJsonFields(message, event, [
+      { path: ["position"], mode: "location", field: "position", color: "#3cb44b" }
+    ]),
+  });
+  // Aggregated GeoJSON converter for cdcl_umd_msgs/msg/CasualtyReport
+  extensionContext.registerMessageConverter({
+    type: "schema",
+    fromSchemaName: "cdcl_umd_msgs/msg/CasualtyReport",
+    toSchemaName: "foxglove_msgs/msg/GeoJSON",
+    converter: (message: Immutable<unknown>, event: Immutable<MessageEvent<unknown>>) =>
+      convertGeoJsonFields(message, event, [
+      { path: ["position"], mode: "location", field: "position", color: "#f032e6" },
+      { path: ["position_submitted"], mode: "location", field: "position_submitted", color: "#46f0f0" }
+    ]),
+  });
+  // Aggregated GeoJSON converter for cdcl_umd_msgs/msg/KnownCasualtyLocations
+  extensionContext.registerMessageConverter({
+    type: "schema",
+    fromSchemaName: "cdcl_umd_msgs/msg/KnownCasualtyLocations",
+    toSchemaName: "foxglove_msgs/msg/GeoJSON",
+    converter: (message: Immutable<unknown>, event: Immutable<MessageEvent<unknown>>) =>
+      convertGeoJsonFields(message, event, [
+      { path: ["casualty_locations", "position"], mode: "location_array", field: "casualty_locations.position", color: "#000075" }
+    ]),
+  });
+  // Aggregated GeoJSON converter for cdcl_umd_msgs/msg/Observation
+  extensionContext.registerMessageConverter({
+    type: "schema",
+    fromSchemaName: "cdcl_umd_msgs/msg/Observation",
+    toSchemaName: "foxglove_msgs/msg/GeoJSON",
+    converter: (message: Immutable<unknown>, event: Immutable<MessageEvent<unknown>>) =>
+      convertGeoJsonFields(message, event, [
+      { path: ["position"], mode: "location", field: "position", color: "#800000" }
+    ]),
+  });
+  // Aggregated GeoJSON converter for cdcl_umd_msgs/msg/Submission
+  extensionContext.registerMessageConverter({
+    type: "schema",
+    fromSchemaName: "cdcl_umd_msgs/msg/Submission",
+    toSchemaName: "foxglove_msgs/msg/GeoJSON",
+    converter: (message: Immutable<unknown>, event: Immutable<MessageEvent<unknown>>) =>
+      convertGeoJsonFields(message, event, [
+      { path: ["assessment", "location"], mode: "location", field: "assessment.location", color: "#f58231" }
+    ]),
+  });
+  // Aggregated GeoJSON converter for cdcl_umd_msgs/msg/SupervisorInterfaceSettings
+  extensionContext.registerMessageConverter({
+    type: "schema",
+    fromSchemaName: "cdcl_umd_msgs/msg/SupervisorInterfaceSettings",
+    toSchemaName: "foxglove_msgs/msg/GeoJSON",
+    converter: (message: Immutable<unknown>, event: Immutable<MessageEvent<unknown>>) =>
+      convertGeoJsonFields(message, event, [
+      { path: ["geo_fence"], mode: "polygon", field: "geo_fence", color: "#9a6324" },
+      { path: ["search_domain"], mode: "polygon", field: "search_domain", color: "#46f0f0" },
+      { path: ["launch_zone"], mode: "polygon", field: "launch_zone", color: "#000075" },
+      { path: ["known_casualties", "position"], mode: "location_array", field: "known_casualties.position", color: "#008080" },
+      { path: ["known_casualties", "position_submitted"], mode: "location_array", field: "known_casualties.position_submitted", color: "#46f0f0" }
+    ]),
+  });
+  // Aggregated GeoJSON converter for cdcl_umd_msgs/msg/TargetBox
+  extensionContext.registerMessageConverter({
+    type: "schema",
+    fromSchemaName: "cdcl_umd_msgs/msg/TargetBox",
+    toSchemaName: "foxglove_msgs/msg/GeoJSON",
+    converter: (message: Immutable<unknown>, event: Immutable<MessageEvent<unknown>>) =>
+      convertGeoJsonFields(message, event, [
+      { path: ["target_location_altimeter_plane"], mode: "location", field: "target_location_altimeter_plane", color: "#911eb4" },
+      { path: ["target_location_gimbal_plane"], mode: "location", field: "target_location_gimbal_plane", color: "#ffd8b1" },
+      { path: ["target_location_rangefinder"], mode: "location", field: "target_location_rangefinder", color: "#9a6324" }
+    ]),
+  });
+  // Aggregated GeoJSON converter for cdcl_umd_msgs/msg/TargetBoxArray
+  extensionContext.registerMessageConverter({
+    type: "schema",
+    fromSchemaName: "cdcl_umd_msgs/msg/TargetBoxArray",
+    toSchemaName: "foxglove_msgs/msg/GeoJSON",
+    converter: (message: Immutable<unknown>, event: Immutable<MessageEvent<unknown>>) =>
+      convertGeoJsonFields(message, event, [
+      { path: ["uav_gps_location"], mode: "location", field: "uav_gps_location", color: "#aaffc3" },
+      { path: ["uav_target_boxes", "target_location_altimeter_plane"], mode: "location_array", field: "uav_target_boxes.target_location_altimeter_plane", color: "#000075" },
+      { path: ["uav_target_boxes", "target_location_gimbal_plane"], mode: "location_array", field: "uav_target_boxes.target_location_gimbal_plane", color: "#ffd8b1" },
+      { path: ["uav_target_boxes", "target_location_rangefinder"], mode: "location_array", field: "uav_target_boxes.target_location_rangefinder", color: "#911eb4" }
+    ]),
+  });
+  // Aggregated GeoJSON converter for cdcl_umd_msgs/msg/TargetHistoryArray
+  extensionContext.registerMessageConverter({
+    type: "schema",
+    fromSchemaName: "cdcl_umd_msgs/msg/TargetHistoryArray",
+    toSchemaName: "foxglove_msgs/msg/GeoJSON",
+    converter: (message: Immutable<unknown>, event: Immutable<MessageEvent<unknown>>) =>
+      convertGeoJsonFields(message, event, [
+      { path: ["target_locations", "target_location_intrinsics"], mode: "location_array", field: "target_locations.target_location_intrinsics", color: "#800000" },
+      { path: ["target_locations", "target_location_topo"], mode: "location_array", field: "target_locations.target_location_topo", color: "#aaffc3" },
+      { path: ["target_locations", "target_location_gimbal_plane"], mode: "location_array", field: "target_locations.target_location_gimbal_plane", color: "#e6194b" },
+      { path: ["target_locations", "target_location_rangefinder"], mode: "location_array", field: "target_locations.target_location_rangefinder", color: "#e6beff" }
+    ]),
+  });
+  // Aggregated GeoJSON converter for cdcl_umd_msgs/msg/TargetLocation
+  extensionContext.registerMessageConverter({
+    type: "schema",
+    fromSchemaName: "cdcl_umd_msgs/msg/TargetLocation",
+    toSchemaName: "foxglove_msgs/msg/GeoJSON",
+    converter: (message: Immutable<unknown>, event: Immutable<MessageEvent<unknown>>) =>
+      convertGeoJsonFields(message, event, [
+      { path: ["target_location_intrinsics"], mode: "location", field: "target_location_intrinsics", color: "#fffac8" },
+      { path: ["target_location_topo"], mode: "location", field: "target_location_topo", color: "#800000" },
+      { path: ["target_location_gimbal_plane"], mode: "location", field: "target_location_gimbal_plane", color: "#808000" },
+      { path: ["target_location_rangefinder"], mode: "location", field: "target_location_rangefinder", color: "#3cb44b" }
+    ]),
+  });
+  // Aggregated GeoJSON converter for cdcl_umd_msgs/msg/Waypoint
+  extensionContext.registerMessageConverter({
+    type: "schema",
+    fromSchemaName: "cdcl_umd_msgs/msg/Waypoint",
+    toSchemaName: "foxglove_msgs/msg/GeoJSON",
+    converter: (message: Immutable<unknown>, event: Immutable<MessageEvent<unknown>>) =>
+      convertGeoJsonFields(message, event, [
+      { path: ["position"], mode: "location", field: "position", color: "#f032e6" }
+    ]),
+  });
+  // Aggregated GeoJSON converter for cdcl_umd_msgs/msg/WaypointArray
+  extensionContext.registerMessageConverter({
+    type: "schema",
+    fromSchemaName: "cdcl_umd_msgs/msg/WaypointArray",
+    toSchemaName: "foxglove_msgs/msg/GeoJSON",
+    converter: (message: Immutable<unknown>, event: Immutable<MessageEvent<unknown>>) =>
+      convertGeoJsonFields(message, event, [
+      { path: ["waypoints", "position"], mode: "location_array", field: "waypoints.position", color: "#46f0f0" }
+    ]),
   });
   // CameraPose__pose__to__pose
   extensionContext.registerMessageConverter({
@@ -315,14 +498,6 @@ export function registerGeneratedSchemaConverters(extensionContext: ExtensionCon
     converter: (message: Immutable<unknown>, event: Immutable<MessageEvent<unknown>>) =>
       convertPassThrough(message, event, ["image"], "image"),
   });
-  // CasualtyImage__position__to__location
-  extensionContext.registerMessageConverter({
-    type: "schema",
-    fromSchemaName: "cdcl_umd_msgs/msg/CasualtyImage",
-    toSchemaName: "foxglove_msgs/msg/GeoJSON",
-    converter: (message: Immutable<unknown>, event: Immutable<MessageEvent<unknown>>) =>
-      convertGeoJson(message, event, ["position"], "location", "position"),
-  });
   // CasualtyImage__position_in_sensor_frame__to__point
   extensionContext.registerMessageConverter({
     type: "schema",
@@ -339,14 +514,6 @@ export function registerGeneratedSchemaConverters(extensionContext: ExtensionCon
     converter: (message: Immutable<unknown>, event: Immutable<MessageEvent<unknown>>) =>
       convertPassThrough(message, event, ["image"], "image"),
   });
-  // CasualtyImageCompressed__position__to__location
-  extensionContext.registerMessageConverter({
-    type: "schema",
-    fromSchemaName: "cdcl_umd_msgs/msg/CasualtyImageCompressed",
-    toSchemaName: "foxglove_msgs/msg/GeoJSON",
-    converter: (message: Immutable<unknown>, event: Immutable<MessageEvent<unknown>>) =>
-      convertGeoJson(message, event, ["position"], "location", "position"),
-  });
   // CasualtyImageCompressed__position_in_sensor_frame__to__point
   extensionContext.registerMessageConverter({
     type: "schema",
@@ -355,22 +522,6 @@ export function registerGeneratedSchemaConverters(extensionContext: ExtensionCon
     converter: (message: Immutable<unknown>, event: Immutable<MessageEvent<unknown>>) =>
       convertPassThrough(message, event, ["position_in_sensor_frame"], "point"),
   });
-  // CasualtyLocation__position__to__location
-  extensionContext.registerMessageConverter({
-    type: "schema",
-    fromSchemaName: "cdcl_umd_msgs/msg/CasualtyLocation",
-    toSchemaName: "foxglove_msgs/msg/GeoJSON",
-    converter: (message: Immutable<unknown>, event: Immutable<MessageEvent<unknown>>) =>
-      convertGeoJson(message, event, ["position"], "location", "position"),
-  });
-  // CasualtyReport__position__to__location
-  extensionContext.registerMessageConverter({
-    type: "schema",
-    fromSchemaName: "cdcl_umd_msgs/msg/CasualtyReport",
-    toSchemaName: "foxglove_msgs/msg/GeoJSON",
-    converter: (message: Immutable<unknown>, event: Immutable<MessageEvent<unknown>>) =>
-      convertGeoJson(message, event, ["position"], "location", "position"),
-  });
   // CasualtyReport__velocity__to__vector
   extensionContext.registerMessageConverter({
     type: "schema",
@@ -378,14 +529,6 @@ export function registerGeneratedSchemaConverters(extensionContext: ExtensionCon
     toSchemaName: "geometry_msgs/msg/Vector3",
     converter: (message: Immutable<unknown>, event: Immutable<MessageEvent<unknown>>) =>
       convertPassThrough(message, event, ["velocity"], "vector"),
-  });
-  // CasualtyReport__position_submitted__to__location
-  extensionContext.registerMessageConverter({
-    type: "schema",
-    fromSchemaName: "cdcl_umd_msgs/msg/CasualtyReport",
-    toSchemaName: "foxglove_msgs/msg/GeoJSON",
-    converter: (message: Immutable<unknown>, event: Immutable<MessageEvent<unknown>>) =>
-      convertGeoJson(message, event, ["position_submitted"], "location", "position_submitted"),
   });
   // CenterROI__gimbal_attitude_quaternion__to__orientation
   extensionContext.registerMessageConverter({
@@ -403,14 +546,6 @@ export function registerGeneratedSchemaConverters(extensionContext: ExtensionCon
     converter: (message: Immutable<unknown>, event: Immutable<MessageEvent<unknown>>) =>
       convertPassThrough(message, event, ["uav_local_pose"], "odometry"),
   });
-  // KnownCasualtyLocations__casualty_locations_position__to__location_array
-  extensionContext.registerMessageConverter({
-    type: "schema",
-    fromSchemaName: "cdcl_umd_msgs/msg/KnownCasualtyLocations",
-    toSchemaName: "foxglove_msgs/msg/GeoJSON",
-    converter: (message: Immutable<unknown>, event: Immutable<MessageEvent<unknown>>) =>
-      convertGeoJson(message, event, ["casualty_locations", "position"], "location_array", "casualty_locations.position"),
-  });
   // MosaicOverlay__overlay_png__to__image
   extensionContext.registerMessageConverter({
     type: "schema",
@@ -418,14 +553,6 @@ export function registerGeneratedSchemaConverters(extensionContext: ExtensionCon
     toSchemaName: "sensor_msgs/msg/CompressedImage",
     converter: (message: Immutable<unknown>, event: Immutable<MessageEvent<unknown>>) =>
       convertPassThrough(message, event, ["overlay_png"], "image"),
-  });
-  // Observation__position__to__location
-  extensionContext.registerMessageConverter({
-    type: "schema",
-    fromSchemaName: "cdcl_umd_msgs/msg/Observation",
-    toSchemaName: "foxglove_msgs/msg/GeoJSON",
-    converter: (message: Immutable<unknown>, event: Immutable<MessageEvent<unknown>>) =>
-      convertGeoJson(message, event, ["position"], "location", "position"),
   });
   // ObservationDataSource__raw_audio__to__audio
   extensionContext.registerMessageConverter({
@@ -467,46 +594,6 @@ export function registerGeneratedSchemaConverters(extensionContext: ExtensionCon
     converter: (message: Immutable<unknown>, event: Immutable<MessageEvent<unknown>>) =>
       convertTextLog(message, event, ["report_status"], "report_status"),
   });
-  // Submission__assessment_location__to__location
-  extensionContext.registerMessageConverter({
-    type: "schema",
-    fromSchemaName: "cdcl_umd_msgs/msg/Submission",
-    toSchemaName: "foxglove_msgs/msg/GeoJSON",
-    converter: (message: Immutable<unknown>, event: Immutable<MessageEvent<unknown>>) =>
-      convertGeoJson(message, event, ["assessment", "location"], "location", "assessment.location"),
-  });
-  // SupervisorInterfaceSettings__geo_fence__to__polygon
-  extensionContext.registerMessageConverter({
-    type: "schema",
-    fromSchemaName: "cdcl_umd_msgs/msg/SupervisorInterfaceSettings",
-    toSchemaName: "foxglove_msgs/msg/GeoJSON",
-    converter: (message: Immutable<unknown>, event: Immutable<MessageEvent<unknown>>) =>
-      convertGeoJson(message, event, ["geo_fence"], "polygon", "geo_fence"),
-  });
-  // SupervisorInterfaceSettings__search_domain__to__polygon
-  extensionContext.registerMessageConverter({
-    type: "schema",
-    fromSchemaName: "cdcl_umd_msgs/msg/SupervisorInterfaceSettings",
-    toSchemaName: "foxglove_msgs/msg/GeoJSON",
-    converter: (message: Immutable<unknown>, event: Immutable<MessageEvent<unknown>>) =>
-      convertGeoJson(message, event, ["search_domain"], "polygon", "search_domain"),
-  });
-  // SupervisorInterfaceSettings__launch_zone__to__polygon
-  extensionContext.registerMessageConverter({
-    type: "schema",
-    fromSchemaName: "cdcl_umd_msgs/msg/SupervisorInterfaceSettings",
-    toSchemaName: "foxglove_msgs/msg/GeoJSON",
-    converter: (message: Immutable<unknown>, event: Immutable<MessageEvent<unknown>>) =>
-      convertGeoJson(message, event, ["launch_zone"], "polygon", "launch_zone"),
-  });
-  // SupervisorInterfaceSettings__known_casualties_position__to__location_array
-  extensionContext.registerMessageConverter({
-    type: "schema",
-    fromSchemaName: "cdcl_umd_msgs/msg/SupervisorInterfaceSettings",
-    toSchemaName: "foxglove_msgs/msg/GeoJSON",
-    converter: (message: Immutable<unknown>, event: Immutable<MessageEvent<unknown>>) =>
-      convertGeoJson(message, event, ["known_casualties", "position"], "location_array", "known_casualties.position"),
-  });
   // SupervisorInterfaceSettings__known_casualties_velocity__to__vector_array
   extensionContext.registerMessageConverter({
     type: "schema",
@@ -515,38 +602,6 @@ export function registerGeneratedSchemaConverters(extensionContext: ExtensionCon
     converter: (message: Immutable<unknown>, event: Immutable<MessageEvent<unknown>>) =>
       convertPassThrough(message, event, ["known_casualties", "velocity"], "vector_array"),
   });
-  // SupervisorInterfaceSettings__known_casualties_position_submitted__to__location_array
-  extensionContext.registerMessageConverter({
-    type: "schema",
-    fromSchemaName: "cdcl_umd_msgs/msg/SupervisorInterfaceSettings",
-    toSchemaName: "foxglove_msgs/msg/GeoJSON",
-    converter: (message: Immutable<unknown>, event: Immutable<MessageEvent<unknown>>) =>
-      convertGeoJson(message, event, ["known_casualties", "position_submitted"], "location_array", "known_casualties.position_submitted"),
-  });
-  // TargetBox__target_location_altimeter_plane__to__location
-  extensionContext.registerMessageConverter({
-    type: "schema",
-    fromSchemaName: "cdcl_umd_msgs/msg/TargetBox",
-    toSchemaName: "foxglove_msgs/msg/GeoJSON",
-    converter: (message: Immutable<unknown>, event: Immutable<MessageEvent<unknown>>) =>
-      convertGeoJson(message, event, ["target_location_altimeter_plane"], "location", "target_location_altimeter_plane"),
-  });
-  // TargetBox__target_location_gimbal_plane__to__location
-  extensionContext.registerMessageConverter({
-    type: "schema",
-    fromSchemaName: "cdcl_umd_msgs/msg/TargetBox",
-    toSchemaName: "foxglove_msgs/msg/GeoJSON",
-    converter: (message: Immutable<unknown>, event: Immutable<MessageEvent<unknown>>) =>
-      convertGeoJson(message, event, ["target_location_gimbal_plane"], "location", "target_location_gimbal_plane"),
-  });
-  // TargetBox__target_location_rangefinder__to__location
-  extensionContext.registerMessageConverter({
-    type: "schema",
-    fromSchemaName: "cdcl_umd_msgs/msg/TargetBox",
-    toSchemaName: "foxglove_msgs/msg/GeoJSON",
-    converter: (message: Immutable<unknown>, event: Immutable<MessageEvent<unknown>>) =>
-      convertGeoJson(message, event, ["target_location_rangefinder"], "location", "target_location_rangefinder"),
-  });
   // TargetBoxArray__source_img__to__image
   extensionContext.registerMessageConverter({
     type: "schema",
@@ -554,14 +609,6 @@ export function registerGeneratedSchemaConverters(extensionContext: ExtensionCon
     toSchemaName: "sensor_msgs/msg/CompressedImage",
     converter: (message: Immutable<unknown>, event: Immutable<MessageEvent<unknown>>) =>
       convertPassThrough(message, event, ["source_img"], "image"),
-  });
-  // TargetBoxArray__uav_gps_location__to__location
-  extensionContext.registerMessageConverter({
-    type: "schema",
-    fromSchemaName: "cdcl_umd_msgs/msg/TargetBoxArray",
-    toSchemaName: "foxglove_msgs/msg/GeoJSON",
-    converter: (message: Immutable<unknown>, event: Immutable<MessageEvent<unknown>>) =>
-      convertGeoJson(message, event, ["uav_gps_location"], "location", "uav_gps_location"),
   });
   // TargetBoxArray__uav_local_pose__to__odometry
   extensionContext.registerMessageConverter({
@@ -579,30 +626,6 @@ export function registerGeneratedSchemaConverters(extensionContext: ExtensionCon
     converter: (message: Immutable<unknown>, event: Immutable<MessageEvent<unknown>>) =>
       convertPassThrough(message, event, ["gimbal_attitude_quaternion"], "orientation"),
   });
-  // TargetBoxArray__uav_target_boxes_target_location_altimeter_plane__to__location_array
-  extensionContext.registerMessageConverter({
-    type: "schema",
-    fromSchemaName: "cdcl_umd_msgs/msg/TargetBoxArray",
-    toSchemaName: "foxglove_msgs/msg/GeoJSON",
-    converter: (message: Immutable<unknown>, event: Immutable<MessageEvent<unknown>>) =>
-      convertGeoJson(message, event, ["uav_target_boxes", "target_location_altimeter_plane"], "location_array", "uav_target_boxes.target_location_altimeter_plane"),
-  });
-  // TargetBoxArray__uav_target_boxes_target_location_gimbal_plane__to__location_array
-  extensionContext.registerMessageConverter({
-    type: "schema",
-    fromSchemaName: "cdcl_umd_msgs/msg/TargetBoxArray",
-    toSchemaName: "foxglove_msgs/msg/GeoJSON",
-    converter: (message: Immutable<unknown>, event: Immutable<MessageEvent<unknown>>) =>
-      convertGeoJson(message, event, ["uav_target_boxes", "target_location_gimbal_plane"], "location_array", "uav_target_boxes.target_location_gimbal_plane"),
-  });
-  // TargetBoxArray__uav_target_boxes_target_location_rangefinder__to__location_array
-  extensionContext.registerMessageConverter({
-    type: "schema",
-    fromSchemaName: "cdcl_umd_msgs/msg/TargetBoxArray",
-    toSchemaName: "foxglove_msgs/msg/GeoJSON",
-    converter: (message: Immutable<unknown>, event: Immutable<MessageEvent<unknown>>) =>
-      convertGeoJson(message, event, ["uav_target_boxes", "target_location_rangefinder"], "location_array", "uav_target_boxes.target_location_rangefinder"),
-  });
   // TargetHistoryArray__source_img__to__image
   extensionContext.registerMessageConverter({
     type: "schema",
@@ -611,78 +634,6 @@ export function registerGeneratedSchemaConverters(extensionContext: ExtensionCon
     converter: (message: Immutable<unknown>, event: Immutable<MessageEvent<unknown>>) =>
       convertPassThrough(message, event, ["source_img"], "image"),
   });
-  // TargetHistoryArray__target_locations_target_location_intrinsics__to__location_array
-  extensionContext.registerMessageConverter({
-    type: "schema",
-    fromSchemaName: "cdcl_umd_msgs/msg/TargetHistoryArray",
-    toSchemaName: "foxglove_msgs/msg/GeoJSON",
-    converter: (message: Immutable<unknown>, event: Immutable<MessageEvent<unknown>>) =>
-      convertGeoJson(message, event, ["target_locations", "target_location_intrinsics"], "location_array", "target_locations.target_location_intrinsics"),
-  });
-  // TargetHistoryArray__target_locations_target_location_topo__to__location_array
-  extensionContext.registerMessageConverter({
-    type: "schema",
-    fromSchemaName: "cdcl_umd_msgs/msg/TargetHistoryArray",
-    toSchemaName: "foxglove_msgs/msg/GeoJSON",
-    converter: (message: Immutable<unknown>, event: Immutable<MessageEvent<unknown>>) =>
-      convertGeoJson(message, event, ["target_locations", "target_location_topo"], "location_array", "target_locations.target_location_topo"),
-  });
-  // TargetHistoryArray__target_locations_target_location_gimbal_plane__to__location_array
-  extensionContext.registerMessageConverter({
-    type: "schema",
-    fromSchemaName: "cdcl_umd_msgs/msg/TargetHistoryArray",
-    toSchemaName: "foxglove_msgs/msg/GeoJSON",
-    converter: (message: Immutable<unknown>, event: Immutable<MessageEvent<unknown>>) =>
-      convertGeoJson(message, event, ["target_locations", "target_location_gimbal_plane"], "location_array", "target_locations.target_location_gimbal_plane"),
-  });
-  // TargetHistoryArray__target_locations_target_location_rangefinder__to__location_array
-  extensionContext.registerMessageConverter({
-    type: "schema",
-    fromSchemaName: "cdcl_umd_msgs/msg/TargetHistoryArray",
-    toSchemaName: "foxglove_msgs/msg/GeoJSON",
-    converter: (message: Immutable<unknown>, event: Immutable<MessageEvent<unknown>>) =>
-      convertGeoJson(message, event, ["target_locations", "target_location_rangefinder"], "location_array", "target_locations.target_location_rangefinder"),
-  });
-  // TargetLocation__target_location_intrinsics__to__location
-  extensionContext.registerMessageConverter({
-    type: "schema",
-    fromSchemaName: "cdcl_umd_msgs/msg/TargetLocation",
-    toSchemaName: "foxglove_msgs/msg/GeoJSON",
-    converter: (message: Immutable<unknown>, event: Immutable<MessageEvent<unknown>>) =>
-      convertGeoJson(message, event, ["target_location_intrinsics"], "location", "target_location_intrinsics"),
-  });
-  // TargetLocation__target_location_topo__to__location
-  extensionContext.registerMessageConverter({
-    type: "schema",
-    fromSchemaName: "cdcl_umd_msgs/msg/TargetLocation",
-    toSchemaName: "foxglove_msgs/msg/GeoJSON",
-    converter: (message: Immutable<unknown>, event: Immutable<MessageEvent<unknown>>) =>
-      convertGeoJson(message, event, ["target_location_topo"], "location", "target_location_topo"),
-  });
-  // TargetLocation__target_location_gimbal_plane__to__location
-  extensionContext.registerMessageConverter({
-    type: "schema",
-    fromSchemaName: "cdcl_umd_msgs/msg/TargetLocation",
-    toSchemaName: "foxglove_msgs/msg/GeoJSON",
-    converter: (message: Immutable<unknown>, event: Immutable<MessageEvent<unknown>>) =>
-      convertGeoJson(message, event, ["target_location_gimbal_plane"], "location", "target_location_gimbal_plane"),
-  });
-  // TargetLocation__target_location_rangefinder__to__location
-  extensionContext.registerMessageConverter({
-    type: "schema",
-    fromSchemaName: "cdcl_umd_msgs/msg/TargetLocation",
-    toSchemaName: "foxglove_msgs/msg/GeoJSON",
-    converter: (message: Immutable<unknown>, event: Immutable<MessageEvent<unknown>>) =>
-      convertGeoJson(message, event, ["target_location_rangefinder"], "location", "target_location_rangefinder"),
-  });
-  // Waypoint__position__to__location
-  extensionContext.registerMessageConverter({
-    type: "schema",
-    fromSchemaName: "cdcl_umd_msgs/msg/Waypoint",
-    toSchemaName: "foxglove_msgs/msg/GeoJSON",
-    converter: (message: Immutable<unknown>, event: Immutable<MessageEvent<unknown>>) =>
-      convertGeoJson(message, event, ["position"], "location", "position"),
-  });
   // Waypoint__orientation__to__orientation
   extensionContext.registerMessageConverter({
     type: "schema",
@@ -690,13 +641,5 @@ export function registerGeneratedSchemaConverters(extensionContext: ExtensionCon
     toSchemaName: "geometry_msgs/msg/Quaternion",
     converter: (message: Immutable<unknown>, event: Immutable<MessageEvent<unknown>>) =>
       convertPassThrough(message, event, ["orientation"], "orientation"),
-  });
-  // WaypointArray__waypoints_position__to__location_array
-  extensionContext.registerMessageConverter({
-    type: "schema",
-    fromSchemaName: "cdcl_umd_msgs/msg/WaypointArray",
-    toSchemaName: "foxglove_msgs/msg/GeoJSON",
-    converter: (message: Immutable<unknown>, event: Immutable<MessageEvent<unknown>>) =>
-      convertGeoJson(message, event, ["waypoints", "position"], "location_array", "waypoints.position"),
   });
 }
