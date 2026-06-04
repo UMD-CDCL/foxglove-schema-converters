@@ -1,0 +1,15 @@
+# dependencies
+node_modules/
+
+# Foxglove extension build output
+observation-schema-converters/dist/
+observation-schema-converters/*.foxe
+
+# logs
+*.log
+npm-debug.log*
+
+# editor/system
+.DS_Store
+.vscode/*
+!.vscode/extensions.json
