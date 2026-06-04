@@ -26,10 +26,7 @@ type ObservationDataSource = {
   transcript?: string;
 };
 
-const INPUT_TOPIC = "/observation_data_sources";
-
-const OUTPUT_IMAGE_TOPIC = "/observation_data_sources/image";
-const OUTPUT_AUDIO_TOPIC = "/observation_data_sources/audio";
+const OBSERVATION_SCHEMA = "cdcl_umd_msgs/msg/ObservationDataSource";
 
 // Audio source: RODE microphone node publishes mono PCM signed 16-bit samples at 48 kHz.
 const AUDIO_FORMAT = "pcm-s16";
@@ -40,67 +37,59 @@ function normalizeBytes(data: Uint8Array | readonly number[]): Uint8Array {
   return data instanceof Uint8Array ? data : new Uint8Array(data);
 }
 
-function asObservation(messageEvent: Immutable<MessageEvent>): ObservationDataSource {
-  return messageEvent.message as ObservationDataSource;
-}
-
 export function activate(extensionContext: ExtensionContext): void {
   extensionContext.registerMessageConverter({
-    type: "topic",
-    inputTopics: [INPUT_TOPIC],
-    outputTopic: OUTPUT_IMAGE_TOPIC,
-    outputSchemaName: "sensor_msgs/msg/CompressedImage",
+    type: "schema",
+    fromSchemaName: OBSERVATION_SCHEMA,
+    toSchemaName: "sensor_msgs/msg/CompressedImage",
 
-    create: () => {
-      return (messageEvent: Immutable<MessageEvent>) => {
-        const observation = asObservation(messageEvent);
+    converter: (
+      observation: Immutable<ObservationDataSource>,
+      messageEvent: Immutable<MessageEvent<ObservationDataSource>>,
+    ) => {
+      if (observation.image == undefined) {
+        return undefined;
+      }
 
-        if (observation.image == undefined) {
-          return undefined;
-        }
-
-        return {
-          header: {
-            stamp:
-              observation.image.header?.stamp ??
-              messageEvent.publishTime ??
-              messageEvent.receiveTime,
-            frame_id:
-              observation.image.header?.frame_id ??
-              observation.platform_name ??
-              "observation",
-          },
-          format: observation.image.format ?? "jpeg",
-          data: normalizeBytes(observation.image.data),
-        };
+      return {
+        header: {
+          stamp:
+            observation.image.header?.stamp ??
+            messageEvent.publishTime ??
+            messageEvent.receiveTime,
+          frame_id:
+            observation.image.header?.frame_id ??
+            observation.platform_name ??
+            "observation",
+        },
+        format: observation.image.format ?? "jpeg",
+        data: normalizeBytes(observation.image.data),
       };
     },
   });
 
   extensionContext.registerMessageConverter({
-    type: "topic",
-    inputTopics: [INPUT_TOPIC],
-    outputTopic: OUTPUT_AUDIO_TOPIC,
-    outputSchemaName: "foxglove_msgs/msg/RawAudio",
+    type: "schema",
+    fromSchemaName: OBSERVATION_SCHEMA,
+    toSchemaName: "foxglove_msgs/msg/RawAudio",
 
-    create: () => {
-      return (messageEvent: Immutable<MessageEvent>) => {
-        const observation = asObservation(messageEvent);
+    converter: (
+      observation: Immutable<ObservationDataSource>,
+      messageEvent: Immutable<MessageEvent<ObservationDataSource>>,
+    ) => {
+      if (observation.raw_audio == undefined || observation.raw_audio.length === 0) {
+        return undefined;
+      }
 
-        if (observation.raw_audio == undefined || observation.raw_audio.length === 0) {
-          return undefined;
-        }
-
-        return {
-          timestamp:
-            observation.audio_start ??
-            messageEvent.publishTime ??
-            messageEvent.receiveTime,
-          data: normalizeBytes(observation.raw_audio),
-          format: AUDIO_FORMAT,
-          sample_rate: AUDIO_SAMPLE_RATE,
-          number_of_channels: AUDIO_CHANNELS,
-        };
+      return {
+        timestamp:
+          observation.audio_start ??
+          messageEvent.publishTime ??
+          messageEvent.receiveTime,
+        data: normalizeBytes(observation.raw_audio),
+        format: AUDIO_FORMAT,
+        sample_rate: AUDIO_SAMPLE_RATE,
+        number_of_channels: AUDIO_CHANNELS,
       };
     },
   });
