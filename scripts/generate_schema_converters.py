@@ -255,6 +255,13 @@ def infer_convertibles(
     fields: list[tuple[str, str]],
     msg_index: dict[str, list[tuple[str, str]]],
 ) -> list[dict[str, str]]:
+    # TargetBoxArray is handled entirely by cdcl-topic-converters.
+    # This includes source_img, uav_gps_location, uav_local_pose,
+    # gimbal_attitude_quaternion, and uav_target_boxes localizations.
+    # Keep TargetBox schema converters; only skip aggregate TargetBoxArray.
+    if msg_name == "TargetBoxArray":
+        return []
+
     results = []
 
     for field_type, field_name in fields:

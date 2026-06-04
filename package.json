@@ -1,0 +1,16 @@
+{
+  "name": "foxglove-schema-converters-workspace",
+  "private": true,
+  "workspaces": [
+    "cdcl-schema-converters",
+    "cdcl-topic-converters"
+  ],
+  "scripts": {
+    "generate:schema": "python3 scripts/generate_schema_converters.py /ros_ws/src/cdcl_umd_msgs/msg cdcl-schema-converters/src/generatedSchemaConverters.ts cdcl_umd_msgs",
+    "generate": "npm run generate:schema && npm run generate:tba-topics",
+    "build:schema": "npm --workspace cdcl-schema-converters run package",
+    "build:topics": "npm --workspace cdcl-topic-converters run package",
+    "build": "npm run generate && npm run build:schema && npm run build:topics",
+    "generate:tba-topics": "python3 scripts/generate_tba_topic_converters.py"
+  }
+}

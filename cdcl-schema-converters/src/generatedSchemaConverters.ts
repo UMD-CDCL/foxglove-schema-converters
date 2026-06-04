@@ -327,16 +327,6 @@ export function registerGeneratedSchemaConverters(extensionContext: ExtensionCon
       { path: ["target_location_altimeter_plane"], mode: "location", field: "target_location_altimeter_plane", color: "#911eb4" }
     ]),
   });
-  // Aggregated GeoJSON converter for cdcl_umd_msgs/msg/TargetBoxArray
-  extensionContext.registerMessageConverter({
-    type: "schema",
-    fromSchemaName: "cdcl_umd_msgs/msg/TargetBoxArray",
-    toSchemaName: "foxglove_msgs/msg/GeoJSON",
-    converter: (message: Immutable<unknown>, event: Immutable<MessageEvent<unknown>>) =>
-      convertGeoJsonFields(message, event, [
-      { path: ["uav_target_boxes", "target_location_altimeter_plane"], mode: "location_array", field: "uav_target_boxes.target_location_altimeter_plane", color: "#000075" }
-    ]),
-  });
   // CameraPose__pose__to__pose
   extensionContext.registerMessageConverter({
     type: "schema",
@@ -456,30 +446,6 @@ export function registerGeneratedSchemaConverters(extensionContext: ExtensionCon
     toSchemaName: "geometry_msgs/msg/Vector3",
     converter: (message: Immutable<unknown>, event: Immutable<MessageEvent<unknown>>) =>
       convertPassThrough(message, event, ["known_casualties", "velocity"], "vector_array"),
-  });
-  // TargetBoxArray__source_img__to__image
-  extensionContext.registerMessageConverter({
-    type: "schema",
-    fromSchemaName: "cdcl_umd_msgs/msg/TargetBoxArray",
-    toSchemaName: "sensor_msgs/msg/CompressedImage",
-    converter: (message: Immutable<unknown>, event: Immutable<MessageEvent<unknown>>) =>
-      convertPassThrough(message, event, ["source_img"], "image"),
-  });
-  // TargetBoxArray__uav_local_pose__to__odometry
-  extensionContext.registerMessageConverter({
-    type: "schema",
-    fromSchemaName: "cdcl_umd_msgs/msg/TargetBoxArray",
-    toSchemaName: "nav_msgs/msg/Odometry",
-    converter: (message: Immutable<unknown>, event: Immutable<MessageEvent<unknown>>) =>
-      convertPassThrough(message, event, ["uav_local_pose"], "odometry"),
-  });
-  // TargetBoxArray__gimbal_attitude_quaternion__to__orientation
-  extensionContext.registerMessageConverter({
-    type: "schema",
-    fromSchemaName: "cdcl_umd_msgs/msg/TargetBoxArray",
-    toSchemaName: "geometry_msgs/msg/Quaternion",
-    converter: (message: Immutable<unknown>, event: Immutable<MessageEvent<unknown>>) =>
-      convertPassThrough(message, event, ["gimbal_attitude_quaternion"], "orientation"),
   });
   // TargetHistoryArray__source_img__to__image
   extensionContext.registerMessageConverter({
