@@ -2,8 +2,8 @@
 node_modules/
 
 # Foxglove extension build output
-observation-schema-converters/dist/
-observation-schema-converters/*.foxe
+cdcl-schema-converters/dist/
+cdcl-schema-converters/*.foxe
 
 # logs
 *.log

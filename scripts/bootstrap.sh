@@ -2,7 +2,7 @@
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-EXT_DIR="$REPO_ROOT/observation-schema-converters"
+EXT_DIR="$REPO_ROOT/cdcl-schema-converters"
 
 cd "$REPO_ROOT"
 
@@ -13,7 +13,7 @@ if [ ! -d "$EXT_DIR" ]; then
   echo "  $EXT_DIR"
   echo
   echo "Create it first with:"
-  echo "  npm create foxglove-extension@latest observation-schema-converters"
+  echo "  npm create foxglove-extension@latest cdcl-schema-converters"
   exit 1
 fi
 

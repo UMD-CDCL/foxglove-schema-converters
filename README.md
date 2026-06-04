@@ -50,7 +50,7 @@ Not yet completed:
 ├── .devcontainer/
 │   ├── Dockerfile
 │   └── devcontainer.json
-├── observation-schema-converters/
+├── cdcl-schema-converters/
 │   ├── src/
 │   │   └── index.ts
 │   ├── package.json
@@ -101,7 +101,7 @@ The bootstrap script currently:
 
 ## Extension Packaging
 
-From inside `observation-schema-converters/`, run:
+From inside `cdcl-schema-converters/`, run:
 
 ```bash
 npm run package
@@ -110,7 +110,7 @@ npm run package
 This creates a `.foxe` package and builds:
 
 ```text
-observation-schema-converters/dist/extension.js
+cdcl-schema-converters/dist/extension.js
 ```
 
 ## Installing into Foxglove Snap Profile
@@ -132,7 +132,7 @@ For the host snap install, copy the built extension to:
 Example from the host:
 
 ```bash
-cd ~/foxglove-schema-converters/observation-schema-converters
+cd ~/foxglove-schema-converters/cdcl-schema-converters
 
 EXT_ID="$(node -p 'const p=require("./package.json"); `${p.publisher}.${p.name}-${p.version}`')"
 HOST_EXT_DIR="$HOME/snap/foxglove-studio/current/.foxglove-studio/extensions/$EXT_ID"

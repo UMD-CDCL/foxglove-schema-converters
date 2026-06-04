@@ -4,7 +4,7 @@ import re
 import sys
 
 MSG_ROOT = Path(sys.argv[1]) if len(sys.argv) > 1 else Path("/ros_ws/src/cdcl_umd_msgs/msg")
-OUT_FILE = Path(sys.argv[2]) if len(sys.argv) > 2 else Path("observation-schema-converters/src/generatedSchemaConverters.ts")
+OUT_FILE = Path(sys.argv[2]) if len(sys.argv) > 2 else Path("cdcl-schema-converters/src/generatedSchemaConverters.ts")
 PKG_NAME = sys.argv[3] if len(sys.argv) > 3 else "cdcl_umd_msgs"
 
 TEXT_NAME_HINTS = ("transcript", "caption", "text", "description", "label", "status")
