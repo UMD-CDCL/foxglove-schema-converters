@@ -6,7 +6,7 @@
   "workspaceFolder": "/workspaces/foxglove-schema-converters",
   "workspaceMount": "source=${localWorkspaceFolder},target=/workspaces/foxglove-schema-converters,type=bind",
   "mounts": [
-    "source=/home/ctitus/ros2_ws/src/cdcl_umd_msgs,target=/ros_ws/src/cdcl_umd_msgs,type=bind,consistency=cached"
+    "source=${localEnv:HOME}/ros2_ws/src/cdcl_umd_msgs,target=/ros_ws/src/cdcl_umd_msgs,type=bind,consistency=cached"
   ],
   "customizations": {
     "vscode": {

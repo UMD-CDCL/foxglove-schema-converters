@@ -506,7 +506,7 @@ export function registerGeneratedTbaTopicConverters(extensionContext: ExtensionC
     inputTopic: "/uas1/target_locations",
     outputTopic: "/uas1/target_locations/source_img",
     field: "source_img",
-    schema: "sensor_msgs/msg/Image",
+    schema: "sensor_msgs/msg/CompressedImage",
   });
   registerRootPassThroughTopicConverter(extensionContext, {
     inputTopic: "/uas1/target_locations",
@@ -562,7 +562,7 @@ export function registerGeneratedTbaTopicConverters(extensionContext: ExtensionC
     inputTopic: "/uas1/target_detections",
     outputTopic: "/uas1/target_detections/source_img",
     field: "source_img",
-    schema: "sensor_msgs/msg/Image",
+    schema: "sensor_msgs/msg/CompressedImage",
   });
   registerRootPassThroughTopicConverter(extensionContext, {
     inputTopic: "/uas1/target_detections",
@@ -594,7 +594,7 @@ export function registerGeneratedTbaTopicConverters(extensionContext: ExtensionC
     inputTopic: "/uas2/target_locations",
     outputTopic: "/uas2/target_locations/source_img",
     field: "source_img",
-    schema: "sensor_msgs/msg/Image",
+    schema: "sensor_msgs/msg/CompressedImage",
   });
   registerRootPassThroughTopicConverter(extensionContext, {
     inputTopic: "/uas2/target_locations",
@@ -650,7 +650,7 @@ export function registerGeneratedTbaTopicConverters(extensionContext: ExtensionC
     inputTopic: "/uas2/target_detections",
     outputTopic: "/uas2/target_detections/source_img",
     field: "source_img",
-    schema: "sensor_msgs/msg/Image",
+    schema: "sensor_msgs/msg/CompressedImage",
   });
   registerRootPassThroughTopicConverter(extensionContext, {
     inputTopic: "/uas2/target_detections",
@@ -682,7 +682,7 @@ export function registerGeneratedTbaTopicConverters(extensionContext: ExtensionC
     inputTopic: "/uas3/target_locations",
     outputTopic: "/uas3/target_locations/source_img",
     field: "source_img",
-    schema: "sensor_msgs/msg/Image",
+    schema: "sensor_msgs/msg/CompressedImage",
   });
   registerRootPassThroughTopicConverter(extensionContext, {
     inputTopic: "/uas3/target_locations",
@@ -738,7 +738,7 @@ export function registerGeneratedTbaTopicConverters(extensionContext: ExtensionC
     inputTopic: "/uas3/target_detections",
     outputTopic: "/uas3/target_detections/source_img",
     field: "source_img",
-    schema: "sensor_msgs/msg/Image",
+    schema: "sensor_msgs/msg/CompressedImage",
   });
   registerRootPassThroughTopicConverter(extensionContext, {
     inputTopic: "/uas3/target_detections",
@@ -770,7 +770,7 @@ export function registerGeneratedTbaTopicConverters(extensionContext: ExtensionC
     inputTopic: "/uas4/target_locations",
     outputTopic: "/uas4/target_locations/source_img",
     field: "source_img",
-    schema: "sensor_msgs/msg/Image",
+    schema: "sensor_msgs/msg/CompressedImage",
   });
   registerRootPassThroughTopicConverter(extensionContext, {
     inputTopic: "/uas4/target_locations",
@@ -826,7 +826,7 @@ export function registerGeneratedTbaTopicConverters(extensionContext: ExtensionC
     inputTopic: "/uas4/target_detections",
     outputTopic: "/uas4/target_detections/source_img",
     field: "source_img",
-    schema: "sensor_msgs/msg/Image",
+    schema: "sensor_msgs/msg/CompressedImage",
   });
   registerRootPassThroughTopicConverter(extensionContext, {
     inputTopic: "/uas4/target_detections",

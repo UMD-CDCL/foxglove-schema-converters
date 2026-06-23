@@ -81,7 +81,7 @@ The dev container mounts the custom ROS 2 message package at:
 The host source path is expected to be:
 
 ```text
-/home/ctitus/ros2_ws/src/cdcl_umd_msgs
+$HOME/ros2_ws/src/cdcl_umd_msgs
 ```
 
 ## Bootstrap
@@ -340,4 +340,3 @@ On the host:
 Then fully quit and reopen Foxglove Studio.
 
 <!-- CDCL_BUILD_AND_DEBUG_END -->
-

@@ -19,7 +19,7 @@ ROOT_PASS_THROUGH_FIELDS = [
         "key": "source_img",
         "field": "source_img",
         "label": "Source image",
-        "schema": "sensor_msgs/msg/Image",
+        "schema": "sensor_msgs/msg/CompressedImage",
     },
     {
         "key": "uav_local_pose",
