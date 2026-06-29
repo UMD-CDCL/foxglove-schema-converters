@@ -35,7 +35,7 @@ type Point2D = {
 };
 
 const LINE_LOOP = 2;
-const FONT_SIZE = 20.0;
+const FONT_SIZE = 20;
 
 function asObject(value: unknown): AnyMessage | undefined {
   if (typeof value !== "object" || value == undefined || Array.isArray(value)) {
