@@ -226,7 +226,7 @@ type Point2D = {
 };
 
 const LINE_LOOP = 2;
-const FONT_SIZE = 50.0;
+const FONT_SIZE = 20.0;
 
 function asObject(value: unknown): AnyMessage | undefined {
   if (typeof value !== "object" || value == undefined || Array.isArray(value)) {
@@ -501,6 +501,7 @@ function boundingBoxesAnnotations(
 
   boxes.forEach((boxValue, index) => {
     const targetBox = asObject(boxValue);
+    const detectionConfidence = targetBox?.detection_confidence;
     const bbox = asObject(targetBox?.target_bbox);
     const center = asObject(bbox?.center);
     const position = asObject(center?.position);
@@ -550,7 +551,7 @@ function boundingBoxesAnnotations(
     texts.push({
       timestamp,
       position: corners[0],
-      text: String(index),
+      text: isFiniteNumber(detectionConfidence) ? `${index}: ${detectionConfidence.toFixed(2)}` : String(index),
       font_size: FONT_SIZE,
       text_color: rgba(1, 1, 1, 1),
       background_color: rgba(0, 0, 0, 0.6),
