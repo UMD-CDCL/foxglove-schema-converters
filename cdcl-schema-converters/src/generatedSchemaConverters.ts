@@ -52,6 +52,25 @@ function normalizeBytes(value: unknown): Uint8Array {
   return new Uint8Array();
 }
 
+function normalizeCompressedImageFormat(value: unknown): string {
+  const format = String(value ?? "").toLowerCase();
+
+  if (format.includes("jpg") || format.includes("jpeg")) {
+    return "jpeg";
+  }
+
+  if (format.includes("png")) {
+    return "png";
+  }
+
+  if (format.includes("tif") || format.includes("tiff")) {
+    return "tiff";
+  }
+
+  // Most CDCL compressed images are JPEG if not otherwise specified.
+  return "jpeg";
+}
+
 function getValuesAtPath(value: unknown, path: readonly string[]): unknown[] {
   if (value == undefined) {
     return [];
@@ -93,12 +112,17 @@ function isValidNavSatFix(value: unknown): value is AnyMessage {
     return false;
   }
 
-  return (
-    isFiniteNumber(fix.latitude) &&
-    isFiniteNumber(fix.longitude) &&
-    Math.abs(fix.latitude) <= 90 &&
-    Math.abs(fix.longitude) <= 180
-  );
+  if (
+    !isFiniteNumber(fix.latitude) ||
+    !isFiniteNumber(fix.longitude) ||
+    Math.abs(fix.latitude) > 90 ||
+    Math.abs(fix.longitude) > 180
+  ) {
+    return false;
+  }
+
+  // Treat 0,0 as an unset/invalid localization.
+  return !(fix.latitude === 0 && fix.longitude === 0);
 }
 
 function navSatFixToCoordinates(fix: AnyMessage): number[] {
@@ -301,7 +325,7 @@ function convertPassThrough(
   const objectValue = asObject(value);
 
   if (objectValue != undefined && target === "image") {
-    return {
+    const image: AnyMessage = {
       ...objectValue,
       header:
         objectValue.header ??
@@ -311,12 +335,125 @@ function convertPassThrough(
         },
       data: normalizeBytes(objectValue.data),
     };
+
+    // CompressedImage (no raw-image encoding field): Foxglove needs a
+    // normalized format string to decode it.
+    if (objectValue.encoding == undefined) {
+      image.format = normalizeCompressedImageFormat(objectValue.format);
+    }
+
+    return image;
   }
 
   return value;
 }
 
 export function registerGeneratedSchemaConverters(extensionContext: ExtensionContext): void {
+  // Aggregated GeoJSON converter for cdcl_umd_msgs/msg/Assessment
+  extensionContext.registerMessageConverter({
+    type: "schema",
+    fromSchemaName: "cdcl_umd_msgs/msg/Assessment",
+    toSchemaName: "foxglove_msgs/msg/GeoJSON",
+    converter: (message: Immutable<unknown>, event: Immutable<MessageEvent<unknown>>) =>
+      convertGeoJsonFields(message, event, [
+      { path: ["location"], mode: "location", field: "location", color: "#800000" }
+    ]),
+  });
+  // Aggregated GeoJSON converter for cdcl_umd_msgs/msg/CameraFOV
+  extensionContext.registerMessageConverter({
+    type: "schema",
+    fromSchemaName: "cdcl_umd_msgs/msg/CameraFOV",
+    toSchemaName: "foxglove_msgs/msg/GeoJSON",
+    converter: (message: Immutable<unknown>, event: Immutable<MessageEvent<unknown>>) =>
+      convertGeoJsonFields(message, event, [
+      { path: ["fov_polygon"], mode: "polygon", field: "fov_polygon", color: "#008080" }
+    ]),
+  });
+  // Aggregated GeoJSON converter for cdcl_umd_msgs/msg/CasualtyImage
+  extensionContext.registerMessageConverter({
+    type: "schema",
+    fromSchemaName: "cdcl_umd_msgs/msg/CasualtyImage",
+    toSchemaName: "foxglove_msgs/msg/GeoJSON",
+    converter: (message: Immutable<unknown>, event: Immutable<MessageEvent<unknown>>) =>
+      convertGeoJsonFields(message, event, [
+      { path: ["position"], mode: "location", field: "position", color: "#4363d8" }
+    ]),
+  });
+  // Aggregated GeoJSON converter for cdcl_umd_msgs/msg/CasualtyImageCompressed
+  extensionContext.registerMessageConverter({
+    type: "schema",
+    fromSchemaName: "cdcl_umd_msgs/msg/CasualtyImageCompressed",
+    toSchemaName: "foxglove_msgs/msg/GeoJSON",
+    converter: (message: Immutable<unknown>, event: Immutable<MessageEvent<unknown>>) =>
+      convertGeoJsonFields(message, event, [
+      { path: ["position"], mode: "location", field: "position", color: "#ffd8b1" }
+    ]),
+  });
+  // Aggregated GeoJSON converter for cdcl_umd_msgs/msg/CasualtyLocation
+  extensionContext.registerMessageConverter({
+    type: "schema",
+    fromSchemaName: "cdcl_umd_msgs/msg/CasualtyLocation",
+    toSchemaName: "foxglove_msgs/msg/GeoJSON",
+    converter: (message: Immutable<unknown>, event: Immutable<MessageEvent<unknown>>) =>
+      convertGeoJsonFields(message, event, [
+      { path: ["position"], mode: "location", field: "position", color: "#3cb44b" }
+    ]),
+  });
+  // Aggregated GeoJSON converter for cdcl_umd_msgs/msg/CasualtyReport
+  extensionContext.registerMessageConverter({
+    type: "schema",
+    fromSchemaName: "cdcl_umd_msgs/msg/CasualtyReport",
+    toSchemaName: "foxglove_msgs/msg/GeoJSON",
+    converter: (message: Immutable<unknown>, event: Immutable<MessageEvent<unknown>>) =>
+      convertGeoJsonFields(message, event, [
+      { path: ["position"], mode: "location", field: "position", color: "#f032e6" },
+      { path: ["position_submitted"], mode: "location", field: "position_submitted", color: "#46f0f0" }
+    ]),
+  });
+  // Aggregated GeoJSON converter for cdcl_umd_msgs/msg/KnownCasualtyLocations
+  extensionContext.registerMessageConverter({
+    type: "schema",
+    fromSchemaName: "cdcl_umd_msgs/msg/KnownCasualtyLocations",
+    toSchemaName: "foxglove_msgs/msg/GeoJSON",
+    converter: (message: Immutable<unknown>, event: Immutable<MessageEvent<unknown>>) =>
+      convertGeoJsonFields(message, event, [
+      { path: ["casualty_locations", "position"], mode: "location_array", field: "casualty_locations.position", color: "#000075" }
+    ]),
+  });
+  // Aggregated GeoJSON converter for cdcl_umd_msgs/msg/Observation
+  extensionContext.registerMessageConverter({
+    type: "schema",
+    fromSchemaName: "cdcl_umd_msgs/msg/Observation",
+    toSchemaName: "foxglove_msgs/msg/GeoJSON",
+    converter: (message: Immutable<unknown>, event: Immutable<MessageEvent<unknown>>) =>
+      convertGeoJsonFields(message, event, [
+      { path: ["position"], mode: "location", field: "position", color: "#800000" }
+    ]),
+  });
+  // Aggregated GeoJSON converter for cdcl_umd_msgs/msg/Submission
+  extensionContext.registerMessageConverter({
+    type: "schema",
+    fromSchemaName: "cdcl_umd_msgs/msg/Submission",
+    toSchemaName: "foxglove_msgs/msg/GeoJSON",
+    converter: (message: Immutable<unknown>, event: Immutable<MessageEvent<unknown>>) =>
+      convertGeoJsonFields(message, event, [
+      { path: ["assessment", "location"], mode: "location", field: "assessment.location", color: "#f58231" }
+    ]),
+  });
+  // Aggregated GeoJSON converter for cdcl_umd_msgs/msg/SupervisorInterfaceSettings
+  extensionContext.registerMessageConverter({
+    type: "schema",
+    fromSchemaName: "cdcl_umd_msgs/msg/SupervisorInterfaceSettings",
+    toSchemaName: "foxglove_msgs/msg/GeoJSON",
+    converter: (message: Immutable<unknown>, event: Immutable<MessageEvent<unknown>>) =>
+      convertGeoJsonFields(message, event, [
+      { path: ["geo_fence"], mode: "polygon", field: "geo_fence", color: "#9a6324" },
+      { path: ["search_domain"], mode: "polygon", field: "search_domain", color: "#46f0f0" },
+      { path: ["launch_zone"], mode: "polygon", field: "launch_zone", color: "#000075" },
+      { path: ["known_casualties", "position"], mode: "location_array", field: "known_casualties.position", color: "#008080" },
+      { path: ["known_casualties", "position_submitted"], mode: "location_array", field: "known_casualties.position_submitted", color: "#46f0f0" }
+    ]),
+  });
   // Aggregated GeoJSON converter for cdcl_umd_msgs/msg/TargetBox
   extensionContext.registerMessageConverter({
     type: "schema",
@@ -325,6 +462,52 @@ export function registerGeneratedSchemaConverters(extensionContext: ExtensionCon
     converter: (message: Immutable<unknown>, event: Immutable<MessageEvent<unknown>>) =>
       convertGeoJsonFields(message, event, [
       { path: ["target_location_altimeter_plane"], mode: "location", field: "target_location_altimeter_plane", color: "#911eb4" }
+    ]),
+  });
+  // Aggregated GeoJSON converter for cdcl_umd_msgs/msg/TargetHistoryArray
+  extensionContext.registerMessageConverter({
+    type: "schema",
+    fromSchemaName: "cdcl_umd_msgs/msg/TargetHistoryArray",
+    toSchemaName: "foxglove_msgs/msg/GeoJSON",
+    converter: (message: Immutable<unknown>, event: Immutable<MessageEvent<unknown>>) =>
+      convertGeoJsonFields(message, event, [
+      { path: ["target_locations", "target_location_intrinsics"], mode: "location_array", field: "target_locations.target_location_intrinsics", color: "#800000" },
+      { path: ["target_locations", "target_location_topo"], mode: "location_array", field: "target_locations.target_location_topo", color: "#aaffc3" },
+      { path: ["target_locations", "target_location_gimbal_plane"], mode: "location_array", field: "target_locations.target_location_gimbal_plane", color: "#e6194b" },
+      { path: ["target_locations", "target_location_rangefinder"], mode: "location_array", field: "target_locations.target_location_rangefinder", color: "#e6beff" }
+    ]),
+  });
+  // Aggregated GeoJSON converter for cdcl_umd_msgs/msg/TargetLocation
+  extensionContext.registerMessageConverter({
+    type: "schema",
+    fromSchemaName: "cdcl_umd_msgs/msg/TargetLocation",
+    toSchemaName: "foxglove_msgs/msg/GeoJSON",
+    converter: (message: Immutable<unknown>, event: Immutable<MessageEvent<unknown>>) =>
+      convertGeoJsonFields(message, event, [
+      { path: ["target_location_intrinsics"], mode: "location", field: "target_location_intrinsics", color: "#fffac8" },
+      { path: ["target_location_topo"], mode: "location", field: "target_location_topo", color: "#800000" },
+      { path: ["target_location_gimbal_plane"], mode: "location", field: "target_location_gimbal_plane", color: "#808000" },
+      { path: ["target_location_rangefinder"], mode: "location", field: "target_location_rangefinder", color: "#3cb44b" }
+    ]),
+  });
+  // Aggregated GeoJSON converter for cdcl_umd_msgs/msg/Waypoint
+  extensionContext.registerMessageConverter({
+    type: "schema",
+    fromSchemaName: "cdcl_umd_msgs/msg/Waypoint",
+    toSchemaName: "foxglove_msgs/msg/GeoJSON",
+    converter: (message: Immutable<unknown>, event: Immutable<MessageEvent<unknown>>) =>
+      convertGeoJsonFields(message, event, [
+      { path: ["position"], mode: "location", field: "position", color: "#f032e6" }
+    ]),
+  });
+  // Aggregated GeoJSON converter for cdcl_umd_msgs/msg/WaypointArray
+  extensionContext.registerMessageConverter({
+    type: "schema",
+    fromSchemaName: "cdcl_umd_msgs/msg/WaypointArray",
+    toSchemaName: "foxglove_msgs/msg/GeoJSON",
+    converter: (message: Immutable<unknown>, event: Immutable<MessageEvent<unknown>>) =>
+      convertGeoJsonFields(message, event, [
+      { path: ["waypoints", "position"], mode: "location_array", field: "waypoints.position", color: "#46f0f0" }
     ]),
   });
   // CameraPose__pose__to__pose
@@ -446,6 +629,14 @@ export function registerGeneratedSchemaConverters(extensionContext: ExtensionCon
     toSchemaName: "geometry_msgs/msg/Vector3",
     converter: (message: Immutable<unknown>, event: Immutable<MessageEvent<unknown>>) =>
       convertPassThrough(message, event, ["known_casualties", "velocity"], "vector_array"),
+  });
+  // TargetBoxArray__source_img__to__image
+  extensionContext.registerMessageConverter({
+    type: "schema",
+    fromSchemaName: "cdcl_umd_msgs/msg/TargetBoxArray",
+    toSchemaName: "sensor_msgs/msg/CompressedImage",
+    converter: (message: Immutable<unknown>, event: Immutable<MessageEvent<unknown>>) =>
+      convertPassThrough(message, event, ["source_img"], "image"),
   });
   // TargetHistoryArray__source_img__to__image
   extensionContext.registerMessageConverter({

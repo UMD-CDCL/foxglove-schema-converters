@@ -15,12 +15,17 @@ POLYGON_LOCATION_FIELD_HINTS = ("polygon", "fence", "domain", "zone", "boundary"
 MAX_NESTING_DEPTH = 3
 
 # Optional workaround for Foxglove Map layer color overriding GeoJSON feature colors.
-# When set, only GeoJSON fields whose full field path matches this regex are generated.
+# The regex is a per-message *preference*, not a global whitelist: for each message
+# schema, if one or more of its GeoJSON fields match, only the matching fields are
+# generated (e.g. TargetBox keeps just target_location_altimeter_plane). If none of a
+# message's fields match (e.g. Observation.position, CasualtyReport.position), ALL of
+# its GeoJSON fields are generated, so every NavSatFix/GPSFix field is convertible
+# regardless of its name. Set CDCL_GEOJSON_FIELD_REGEX="" to disable filtering entirely.
 # Examples:
 #   CDCL_GEOJSON_FIELD_REGEX=target_location_altimeter_plane
 #   CDCL_GEOJSON_FIELD_REGEX=target_location_gimbal_plane
 #   CDCL_GEOJSON_FIELD_REGEX=target_location_rangefinder
-GEOJSON_FIELD_REGEX = os.environ.get("CDCL_GEOJSON_FIELD_REGEX", "target_location_altimeter_plane")
+GEOJSON_FIELD_REGEX = os.environ.get("CDCL_GEOJSON_FIELD_REGEX", "target_location_altimeter_plane") or None
 
 FIELD_COLORS = [
     "#e6194b",
@@ -255,12 +260,13 @@ def infer_convertibles(
     fields: list[tuple[str, str]],
     msg_index: dict[str, list[tuple[str, str]]],
 ) -> list[dict[str, str]]:
-    # TargetBoxArray is handled entirely by cdcl-topic-converters.
-    # This includes source_img, uav_gps_location, uav_local_pose,
-    # gimbal_attitude_quaternion, and uav_target_boxes localizations.
-    # Keep TargetBox schema converters; only skip aggregate TargetBoxArray.
+    # TargetBoxArray is mostly handled by cdcl-topic-converters
+    # (uav_gps_location, uav_local_pose, gimbal_attitude_quaternion, and
+    # uav_target_boxes localizations). Only source_img is converted here so
+    # Foxglove can display the source image via a schema converter.
+    # Keep TargetBox schema converters; only restrict aggregate TargetBoxArray.
     if msg_name == "TargetBoxArray":
-        return []
+        fields = [(field_type, field_name) for field_type, field_name in fields if field_name == "source_img"]
 
     results = []
 
@@ -336,8 +342,6 @@ def generate_ts(converters: list[dict[str, str]]) -> str:
 
     for item in converters:
         if item["to_schema"] == "foxglove_msgs/msg/GeoJSON":
-            if GEOJSON_FIELD_REGEX is not None and re.search(GEOJSON_FIELD_REGEX, item["field"]) is None:
-                continue
             geojson_by_schema[item["from_schema"]].append(item)
         else:
             non_geojson.append(item)
@@ -345,7 +349,16 @@ def generate_ts(converters: list[dict[str, str]]) -> str:
     registrations = []
 
     for from_schema in sorted(geojson_by_schema):
-        registrations.append(generate_geojson_registration(from_schema, geojson_by_schema[from_schema]))
+        items = geojson_by_schema[from_schema]
+
+        # Prefer regex-matching fields within a message, but never drop a message
+        # entirely: fall back to all of its fields when nothing matches.
+        if GEOJSON_FIELD_REGEX is not None:
+            matching = [item for item in items if re.search(GEOJSON_FIELD_REGEX, item["field"]) is not None]
+            if matching:
+                items = matching
+
+        registrations.append(generate_geojson_registration(from_schema, items))
 
     for item in non_geojson:
         registrations.append(generate_field_registration(item))
@@ -404,6 +417,25 @@ function normalizeBytes(value: unknown): Uint8Array {{
   return new Uint8Array();
 }}
 
+function normalizeCompressedImageFormat(value: unknown): string {{
+  const format = String(value ?? "").toLowerCase();
+
+  if (format.includes("jpg") || format.includes("jpeg")) {{
+    return "jpeg";
+  }}
+
+  if (format.includes("png")) {{
+    return "png";
+  }}
+
+  if (format.includes("tif") || format.includes("tiff")) {{
+    return "tiff";
+  }}
+
+  // Most CDCL compressed images are JPEG if not otherwise specified.
+  return "jpeg";
+}}
+
 function getValuesAtPath(value: unknown, path: readonly string[]): unknown[] {{
   if (value == undefined) {{
     return [];
@@ -445,12 +477,17 @@ function isValidNavSatFix(value: unknown): value is AnyMessage {{
     return false;
   }}
 
-  return (
-    isFiniteNumber(fix.latitude) &&
-    isFiniteNumber(fix.longitude) &&
-    Math.abs(fix.latitude) <= 90 &&
-    Math.abs(fix.longitude) <= 180
-  );
+  if (
+    !isFiniteNumber(fix.latitude) ||
+    !isFiniteNumber(fix.longitude) ||
+    Math.abs(fix.latitude) > 90 ||
+    Math.abs(fix.longitude) > 180
+  ) {{
+    return false;
+  }}
+
+  // Treat 0,0 as an unset/invalid localization.
+  return !(fix.latitude === 0 && fix.longitude === 0);
 }}
 
 function navSatFixToCoordinates(fix: AnyMessage): number[] {{
@@ -653,7 +690,7 @@ function convertPassThrough(
   const objectValue = asObject(value);
 
   if (objectValue != undefined && target === "image") {{
-    return {{
+    const image: AnyMessage = {{
       ...objectValue,
       header:
         objectValue.header ??
@@ -663,6 +700,14 @@ function convertPassThrough(
         }},
       data: normalizeBytes(objectValue.data),
     }};
+
+    // CompressedImage (no raw-image encoding field): Foxglove needs a
+    // normalized format string to decode it.
+    if (objectValue.encoding == undefined) {{
+      image.format = normalizeCompressedImageFormat(objectValue.format);
+    }}
+
+    return image;
   }}
 
   return value;

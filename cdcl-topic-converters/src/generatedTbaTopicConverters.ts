@@ -54,45 +54,6 @@ function eventTime(event: Immutable<MessageEvent<unknown>>): FoxgloveTime {
   };
 }
 
-function eventRosTime(event: Immutable<MessageEvent<unknown>>): { sec: number; nanosec: number } {
-  const stamp = eventTime(event);
-  return {
-    sec: stamp.sec,
-    nanosec: stamp.nsec,
-  };
-}
-
-function normalizeBytes(value: unknown): Uint8Array {
-  if (value instanceof Uint8Array) {
-    return value;
-  }
-
-  if (Array.isArray(value)) {
-    return new Uint8Array(value as readonly number[]);
-  }
-
-  return new Uint8Array();
-}
-
-function normalizeCompressedImageFormat(value: unknown): string {
-  const format = String(value ?? "").toLowerCase();
-
-  if (format.includes("jpg") || format.includes("jpeg")) {
-    return "jpeg";
-  }
-
-  if (format.includes("png")) {
-    return "png";
-  }
-
-  if (format.includes("tif") || format.includes("tiff")) {
-    return "tiff";
-  }
-
-  // Most CDCL compressed images are JPEG if not otherwise specified.
-  return "jpeg";
-}
-
 function isFiniteNumber(value: unknown): value is number {
   return typeof value === "number" && Number.isFinite(value);
 }
@@ -380,7 +341,6 @@ function boundingBoxesAnnotations(
 
 function rootPassThrough(
   message: unknown,
-  event: Immutable<MessageEvent<unknown>>,
   config: RootPassThroughConverterConfig,
 ): Record<string, unknown> | undefined {
   const root = asObject(message);
@@ -391,37 +351,6 @@ function rootPassThrough(
   }
 
   const objectValue = asObject(value);
-
-  if (objectValue != undefined && config.schema === "sensor_msgs/msg/CompressedImage") {
-    return {
-      ...objectValue,
-      header:
-        objectValue.header ??
-        {
-          stamp: eventRosTime(event),
-          frame_id: "",
-        },
-      format: normalizeCompressedImageFormat(objectValue.format),
-      data: normalizeBytes(objectValue.data),
-    };
-  }
-
-  if (objectValue != undefined && config.schema === "sensor_msgs/msg/Image") {
-    return {
-      header:
-        objectValue.header ??
-        {
-          stamp: eventRosTime(event),
-          frame_id: "",
-        },
-      height: Number(objectValue.height ?? 0),
-      width: Number(objectValue.width ?? 0),
-      encoding: String(objectValue.encoding ?? "bgr8"),
-      is_bigendian: Number(objectValue.is_bigendian ?? 0),
-      step: Number(objectValue.step ?? 0),
-      data: normalizeBytes(objectValue.data),
-    };
-  }
 
   if (objectValue != undefined) {
     return objectValue;
@@ -473,7 +402,7 @@ function registerRootPassThroughTopicConverter(
     outputSchemaName: config.schema,
     create: () => {
       return (messageEvent: Immutable<MessageEvent<unknown>>) =>
-        rootPassThrough(messageEvent.message, messageEvent, config);
+        rootPassThrough(messageEvent.message, config);
     },
   });
 }
@@ -502,12 +431,6 @@ export function registerGeneratedTbaTopicConverters(extensionContext: ExtensionC
     locationField: "uav_gps_location",
     locationKey: "uav_paused_location",
     locationLabel: "UAV paused location",
-  });
-  registerRootPassThroughTopicConverter(extensionContext, {
-    inputTopic: "/uas1/target_locations",
-    outputTopic: "/uas1/target_locations/source_img",
-    field: "source_img",
-    schema: "sensor_msgs/msg/CompressedImage",
   });
   registerRootPassThroughTopicConverter(extensionContext, {
     inputTopic: "/uas1/target_locations",
@@ -561,12 +484,6 @@ export function registerGeneratedTbaTopicConverters(extensionContext: ExtensionC
   });
   registerRootPassThroughTopicConverter(extensionContext, {
     inputTopic: "/uas1/target_detections",
-    outputTopic: "/uas1/target_detections/source_img",
-    field: "source_img",
-    schema: "sensor_msgs/msg/CompressedImage",
-  });
-  registerRootPassThroughTopicConverter(extensionContext, {
-    inputTopic: "/uas1/target_detections",
     outputTopic: "/uas1/target_detections/uav_local_pose",
     field: "uav_local_pose",
     schema: "nav_msgs/msg/Odometry",
@@ -590,12 +507,6 @@ export function registerGeneratedTbaTopicConverters(extensionContext: ExtensionC
     locationField: "uav_gps_location",
     locationKey: "uav_paused_location",
     locationLabel: "UAV paused location",
-  });
-  registerRootPassThroughTopicConverter(extensionContext, {
-    inputTopic: "/uas2/target_locations",
-    outputTopic: "/uas2/target_locations/source_img",
-    field: "source_img",
-    schema: "sensor_msgs/msg/CompressedImage",
   });
   registerRootPassThroughTopicConverter(extensionContext, {
     inputTopic: "/uas2/target_locations",
@@ -649,12 +560,6 @@ export function registerGeneratedTbaTopicConverters(extensionContext: ExtensionC
   });
   registerRootPassThroughTopicConverter(extensionContext, {
     inputTopic: "/uas2/target_detections",
-    outputTopic: "/uas2/target_detections/source_img",
-    field: "source_img",
-    schema: "sensor_msgs/msg/CompressedImage",
-  });
-  registerRootPassThroughTopicConverter(extensionContext, {
-    inputTopic: "/uas2/target_detections",
     outputTopic: "/uas2/target_detections/uav_local_pose",
     field: "uav_local_pose",
     schema: "nav_msgs/msg/Odometry",
@@ -678,12 +583,6 @@ export function registerGeneratedTbaTopicConverters(extensionContext: ExtensionC
     locationField: "uav_gps_location",
     locationKey: "uav_paused_location",
     locationLabel: "UAV paused location",
-  });
-  registerRootPassThroughTopicConverter(extensionContext, {
-    inputTopic: "/uas3/target_locations",
-    outputTopic: "/uas3/target_locations/source_img",
-    field: "source_img",
-    schema: "sensor_msgs/msg/CompressedImage",
   });
   registerRootPassThroughTopicConverter(extensionContext, {
     inputTopic: "/uas3/target_locations",
@@ -737,12 +636,6 @@ export function registerGeneratedTbaTopicConverters(extensionContext: ExtensionC
   });
   registerRootPassThroughTopicConverter(extensionContext, {
     inputTopic: "/uas3/target_detections",
-    outputTopic: "/uas3/target_detections/source_img",
-    field: "source_img",
-    schema: "sensor_msgs/msg/CompressedImage",
-  });
-  registerRootPassThroughTopicConverter(extensionContext, {
-    inputTopic: "/uas3/target_detections",
     outputTopic: "/uas3/target_detections/uav_local_pose",
     field: "uav_local_pose",
     schema: "nav_msgs/msg/Odometry",
@@ -766,12 +659,6 @@ export function registerGeneratedTbaTopicConverters(extensionContext: ExtensionC
     locationField: "uav_gps_location",
     locationKey: "uav_paused_location",
     locationLabel: "UAV paused location",
-  });
-  registerRootPassThroughTopicConverter(extensionContext, {
-    inputTopic: "/uas4/target_locations",
-    outputTopic: "/uas4/target_locations/source_img",
-    field: "source_img",
-    schema: "sensor_msgs/msg/CompressedImage",
   });
   registerRootPassThroughTopicConverter(extensionContext, {
     inputTopic: "/uas4/target_locations",
@@ -822,12 +709,6 @@ export function registerGeneratedTbaTopicConverters(extensionContext: ExtensionC
     locationField: "uav_gps_location",
     locationKey: "uav_paused_location",
     locationLabel: "UAV paused location",
-  });
-  registerRootPassThroughTopicConverter(extensionContext, {
-    inputTopic: "/uas4/target_detections",
-    outputTopic: "/uas4/target_detections/source_img",
-    field: "source_img",
-    schema: "sensor_msgs/msg/CompressedImage",
   });
   registerRootPassThroughTopicConverter(extensionContext, {
     inputTopic: "/uas4/target_detections",
