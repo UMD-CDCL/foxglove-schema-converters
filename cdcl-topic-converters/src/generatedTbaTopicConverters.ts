@@ -22,21 +22,6 @@ type RootPassThroughConverterConfig = {
   schema: string;
 };
 
-type BoundingBoxesConverterConfig = {
-  inputTopic: string;
-  outputTopic: string;
-  uas: number;
-  label: string;
-};
-
-type Point2D = {
-  x: number;
-  y: number;
-};
-
-const LINE_LOOP = 2;
-const FONT_SIZE = 20;
-
 function asObject(value: unknown): AnyMessage | undefined {
   if (typeof value !== "object" || value == undefined || Array.isArray(value)) {
     return undefined;
@@ -220,125 +205,6 @@ function targetBoxGeoJson(
   };
 }
 
-function rgba(r: number, g: number, b: number, a: number): Record<string, number> {
-  return { r, g, b, a };
-}
-
-function rotatePoint(cx: number, cy: number, x: number, y: number, theta: number): Point2D {
-  const cosTheta = Math.cos(theta);
-  const sinTheta = Math.sin(theta);
-  const dx = x - cx;
-  const dy = y - cy;
-
-  return {
-    x: cx + cosTheta * dx - sinTheta * dy,
-    y: cy + sinTheta * dx + cosTheta * dy,
-  };
-}
-
-function headerStampOrEventTime(
-  message: unknown,
-  event: Immutable<MessageEvent<unknown>>,
-): FoxgloveTime {
-  const root = asObject(message);
-  const header = asObject(root?.header);
-  const stamp = asObject(header?.stamp);
-
-  if (stamp != undefined) {
-    return {
-      sec: Number(stamp.sec ?? 0),
-      nsec: Number(stamp.nsec ?? stamp.nanosec ?? 0),
-    };
-  }
-
-  return eventTime(event);
-}
-
-function boundingBoxesAnnotations(
-  message: unknown,
-  event: Immutable<MessageEvent<unknown>>,
-  config: BoundingBoxesConverterConfig,
-): Record<string, unknown> | undefined {
-  const boxes = targetBoxesFromMessage(message);
-
-  if (boxes.length === 0) {
-    return undefined;
-  }
-
-  const timestamp = headerStampOrEventTime(message, event);
-  const points: Record<string, unknown>[] = [];
-  const texts: Record<string, unknown>[] = [];
-
-  boxes.forEach((boxValue, index) => {
-    const targetBox = asObject(boxValue);
-    const detectionConfidence = targetBox?.detection_confidence;
-    const bbox = asObject(targetBox?.target_bbox);
-    const center = asObject(bbox?.center);
-    const position = asObject(center?.position);
-
-    if (bbox == undefined || center == undefined || position == undefined) {
-      return;
-    }
-
-    const cx = Number(position.x);
-    const cy = Number(position.y);
-    const theta = Number(center.theta ?? 0);
-    const sizeX = Number(bbox.size_x);
-    const sizeY = Number(bbox.size_y);
-
-    if (
-      !Number.isFinite(cx) ||
-      !Number.isFinite(cy) ||
-      !Number.isFinite(theta) ||
-      !Number.isFinite(sizeX) ||
-      !Number.isFinite(sizeY) ||
-      sizeX <= 0 ||
-      sizeY <= 0
-    ) {
-      return;
-    }
-
-    const halfX = sizeX / 2;
-    const halfY = sizeY / 2;
-
-    const corners = [
-      { x: cx - halfX, y: cy - halfY },
-      { x: cx + halfX, y: cy - halfY },
-      { x: cx + halfX, y: cy + halfY },
-      { x: cx - halfX, y: cy + halfY },
-    ].map((point) => rotatePoint(cx, cy, point.x, point.y, theta));
-
-    points.push({
-      timestamp,
-      type: LINE_LOOP,
-      points: corners,
-      thickness: 2,
-      outline_color: rgba(0, 1, 0, 1),
-      outline_colors: [],
-      fill_color: rgba(0, 1, 0, 0.12),
-    });
-
-    texts.push({
-      timestamp,
-      position: corners[0],
-      text: isFiniteNumber(detectionConfidence) ? `${index}: ${detectionConfidence.toFixed(2)}` : String(index),
-      font_size: FONT_SIZE,
-      text_color: rgba(1, 1, 1, 1),
-      background_color: rgba(0, 0, 0, 0.6),
-    });
-  });
-
-  if (points.length === 0 && texts.length === 0) {
-    return undefined;
-  }
-
-  return {
-    circles: [],
-    points,
-    texts,
-  };
-}
-
 function rootPassThrough(
   message: unknown,
   config: RootPassThroughConverterConfig,
@@ -407,22 +273,6 @@ function registerRootPassThroughTopicConverter(
   });
 }
 
-function registerBoundingBoxesTopicConverter(
-  extensionContext: ExtensionContext,
-  config: BoundingBoxesConverterConfig,
-): void {
-  extensionContext.registerMessageConverter({
-    type: "topic",
-    inputTopics: [config.inputTopic],
-    outputTopic: config.outputTopic,
-    outputSchemaName: "foxglove_msgs/msg/ImageAnnotations",
-    create: () => {
-      return (messageEvent: Immutable<MessageEvent<unknown>>) =>
-        boundingBoxesAnnotations(messageEvent.message, messageEvent, config);
-    },
-  });
-}
-
 export function registerGeneratedTbaTopicConverters(extensionContext: ExtensionContext): void {
   registerRootNavSatFixGeoJsonTopicConverter(extensionContext, {
     inputTopic: "/uas1/target_locations",
@@ -443,12 +293,6 @@ export function registerGeneratedTbaTopicConverters(extensionContext: ExtensionC
     outputTopic: "/uas1/target_locations/gimbal_attitude_quaternion",
     field: "gimbal_attitude_quaternion",
     schema: "geometry_msgs/msg/Quaternion",
-  });
-  registerBoundingBoxesTopicConverter(extensionContext, {
-    inputTopic: "/uas1/target_locations",
-    outputTopic: "/uas1/target_locations/bounding_boxes",
-    uas: 1,
-    label: "Bounding boxes",
   });
   registerTargetBoxArrayGeoJsonTopicConverter(extensionContext, {
     inputTopic: "/uas1/target_locations",
@@ -494,12 +338,6 @@ export function registerGeneratedTbaTopicConverters(extensionContext: ExtensionC
     field: "gimbal_attitude_quaternion",
     schema: "geometry_msgs/msg/Quaternion",
   });
-  registerBoundingBoxesTopicConverter(extensionContext, {
-    inputTopic: "/uas1/target_detections",
-    outputTopic: "/uas1/target_detections/bounding_boxes",
-    uas: 1,
-    label: "Bounding boxes",
-  });
   registerRootNavSatFixGeoJsonTopicConverter(extensionContext, {
     inputTopic: "/uas2/target_locations",
     outputTopic: "/uas2/target_locations/uav_paused_location",
@@ -519,12 +357,6 @@ export function registerGeneratedTbaTopicConverters(extensionContext: ExtensionC
     outputTopic: "/uas2/target_locations/gimbal_attitude_quaternion",
     field: "gimbal_attitude_quaternion",
     schema: "geometry_msgs/msg/Quaternion",
-  });
-  registerBoundingBoxesTopicConverter(extensionContext, {
-    inputTopic: "/uas2/target_locations",
-    outputTopic: "/uas2/target_locations/bounding_boxes",
-    uas: 2,
-    label: "Bounding boxes",
   });
   registerTargetBoxArrayGeoJsonTopicConverter(extensionContext, {
     inputTopic: "/uas2/target_locations",
@@ -570,12 +402,6 @@ export function registerGeneratedTbaTopicConverters(extensionContext: ExtensionC
     field: "gimbal_attitude_quaternion",
     schema: "geometry_msgs/msg/Quaternion",
   });
-  registerBoundingBoxesTopicConverter(extensionContext, {
-    inputTopic: "/uas2/target_detections",
-    outputTopic: "/uas2/target_detections/bounding_boxes",
-    uas: 2,
-    label: "Bounding boxes",
-  });
   registerRootNavSatFixGeoJsonTopicConverter(extensionContext, {
     inputTopic: "/uas3/target_locations",
     outputTopic: "/uas3/target_locations/uav_paused_location",
@@ -595,12 +421,6 @@ export function registerGeneratedTbaTopicConverters(extensionContext: ExtensionC
     outputTopic: "/uas3/target_locations/gimbal_attitude_quaternion",
     field: "gimbal_attitude_quaternion",
     schema: "geometry_msgs/msg/Quaternion",
-  });
-  registerBoundingBoxesTopicConverter(extensionContext, {
-    inputTopic: "/uas3/target_locations",
-    outputTopic: "/uas3/target_locations/bounding_boxes",
-    uas: 3,
-    label: "Bounding boxes",
   });
   registerTargetBoxArrayGeoJsonTopicConverter(extensionContext, {
     inputTopic: "/uas3/target_locations",
@@ -646,12 +466,6 @@ export function registerGeneratedTbaTopicConverters(extensionContext: ExtensionC
     field: "gimbal_attitude_quaternion",
     schema: "geometry_msgs/msg/Quaternion",
   });
-  registerBoundingBoxesTopicConverter(extensionContext, {
-    inputTopic: "/uas3/target_detections",
-    outputTopic: "/uas3/target_detections/bounding_boxes",
-    uas: 3,
-    label: "Bounding boxes",
-  });
   registerRootNavSatFixGeoJsonTopicConverter(extensionContext, {
     inputTopic: "/uas4/target_locations",
     outputTopic: "/uas4/target_locations/uav_paused_location",
@@ -671,12 +485,6 @@ export function registerGeneratedTbaTopicConverters(extensionContext: ExtensionC
     outputTopic: "/uas4/target_locations/gimbal_attitude_quaternion",
     field: "gimbal_attitude_quaternion",
     schema: "geometry_msgs/msg/Quaternion",
-  });
-  registerBoundingBoxesTopicConverter(extensionContext, {
-    inputTopic: "/uas4/target_locations",
-    outputTopic: "/uas4/target_locations/bounding_boxes",
-    uas: 4,
-    label: "Bounding boxes",
   });
   registerTargetBoxArrayGeoJsonTopicConverter(extensionContext, {
     inputTopic: "/uas4/target_locations",
@@ -721,11 +529,5 @@ export function registerGeneratedTbaTopicConverters(extensionContext: ExtensionC
     outputTopic: "/uas4/target_detections/gimbal_attitude_quaternion",
     field: "gimbal_attitude_quaternion",
     schema: "geometry_msgs/msg/Quaternion",
-  });
-  registerBoundingBoxesTopicConverter(extensionContext, {
-    inputTopic: "/uas4/target_detections",
-    outputTopic: "/uas4/target_detections/bounding_boxes",
-    uas: 4,
-    label: "Bounding boxes",
   });
 }

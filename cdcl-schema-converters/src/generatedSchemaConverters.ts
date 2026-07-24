@@ -12,10 +12,17 @@ type GeoJsonFieldConfig = {
   field: string;
   color: string;
 };
+type Point2D = {
+  x: number;
+  y: number;
+};
 
 const AUDIO_FORMAT = "pcm-s16";
 const AUDIO_SAMPLE_RATE = 48000;
 const AUDIO_CHANNELS = 1;
+
+const LINE_LOOP = 2;
+const FONT_SIZE = 20;
 
 function asObject(value: unknown): AnyMessage | undefined {
   if (typeof value !== "object" || value == undefined || Array.isArray(value)) {
@@ -348,6 +355,161 @@ function convertPassThrough(
   return value;
 }
 
+function rgba(r: number, g: number, b: number, a: number): Record<string, number> {
+  return { r, g, b, a };
+}
+
+function rotatePoint(cx: number, cy: number, x: number, y: number, theta: number): Point2D {
+  const cosTheta = Math.cos(theta);
+  const sinTheta = Math.sin(theta);
+  const dx = x - cx;
+  const dy = y - cy;
+
+  return {
+    x: cx + cosTheta * dx - sinTheta * dy,
+    y: cy + sinTheta * dx + cosTheta * dy,
+  };
+}
+
+function headerStampOrEventTime(
+  message: Immutable<unknown>,
+  event: Immutable<MessageEvent<unknown>>,
+): FoxgloveTime {
+  const root = asObject(message);
+  const header = asObject(root?.header);
+  const stamp = asObject(header?.stamp);
+
+  if (stamp != undefined) {
+    return {
+      sec: Number(stamp.sec ?? 0),
+      nsec: Number(stamp.nsec ?? stamp.nanosec ?? 0),
+    };
+  }
+
+  return eventTime(event);
+}
+
+// Stamps the extracted image with the parent message's header stamp — the
+// same timestamp convertBoundingBoxAnnotations uses — so the parent message,
+// the image, and its bounding-box annotations display synced in Foxglove.
+function convertRootStampedImage(
+  message: Immutable<unknown>,
+  event: Immutable<MessageEvent<unknown>>,
+  path: readonly string[],
+): unknown {
+  const value = getFirstAtPath(message, path);
+  const objectValue = asObject(value);
+
+  if (objectValue == undefined) {
+    return undefined;
+  }
+
+  const stamp = headerStampOrEventTime(message, event);
+  const header = asObject(objectValue.header);
+
+  const image: AnyMessage = {
+    ...objectValue,
+    header: {
+      frame_id: String(header?.frame_id ?? ""),
+      stamp: { sec: stamp.sec, nanosec: stamp.nsec },
+    },
+    data: normalizeBytes(objectValue.data),
+  };
+
+  // CompressedImage (no raw-image encoding field): Foxglove needs a
+  // normalized format string to decode it.
+  if (objectValue.encoding == undefined) {
+    image.format = normalizeCompressedImageFormat(objectValue.format);
+  }
+
+  return image;
+}
+
+function convertBoundingBoxAnnotations(
+  message: Immutable<unknown>,
+  event: Immutable<MessageEvent<unknown>>,
+  path: readonly string[],
+): unknown {
+  const boxes = getValuesAtPath(message, path);
+
+  if (boxes.length === 0) {
+    return undefined;
+  }
+
+  const timestamp = headerStampOrEventTime(message, event);
+  const points: Record<string, unknown>[] = [];
+  const texts: Record<string, unknown>[] = [];
+
+  boxes.forEach((boxValue, index) => {
+    const targetBox = asObject(boxValue);
+    const detectionConfidence = targetBox?.detection_confidence;
+    const bbox = asObject(targetBox?.target_bbox);
+    const center = asObject(bbox?.center);
+    const position = asObject(center?.position);
+
+    if (bbox == undefined || center == undefined || position == undefined) {
+      return;
+    }
+
+    const cx = Number(position.x);
+    const cy = Number(position.y);
+    const theta = Number(center.theta ?? 0);
+    const sizeX = Number(bbox.size_x);
+    const sizeY = Number(bbox.size_y);
+
+    if (
+      !Number.isFinite(cx) ||
+      !Number.isFinite(cy) ||
+      !Number.isFinite(theta) ||
+      !Number.isFinite(sizeX) ||
+      !Number.isFinite(sizeY) ||
+      sizeX <= 0 ||
+      sizeY <= 0
+    ) {
+      return;
+    }
+
+    const halfX = sizeX / 2;
+    const halfY = sizeY / 2;
+
+    const corners = [
+      { x: cx - halfX, y: cy - halfY },
+      { x: cx + halfX, y: cy - halfY },
+      { x: cx + halfX, y: cy + halfY },
+      { x: cx - halfX, y: cy + halfY },
+    ].map((point) => rotatePoint(cx, cy, point.x, point.y, theta));
+
+    points.push({
+      timestamp,
+      type: LINE_LOOP,
+      points: corners,
+      thickness: 2,
+      outline_color: rgba(0, 1, 0, 1),
+      outline_colors: [],
+      fill_color: rgba(0, 1, 0, 0.12),
+    });
+
+    texts.push({
+      timestamp,
+      position: corners[0],
+      text: isFiniteNumber(detectionConfidence) ? `${index}: ${detectionConfidence.toFixed(2)}` : String(index),
+      font_size: FONT_SIZE,
+      text_color: rgba(1, 1, 1, 1),
+      background_color: rgba(0, 0, 0, 0.6),
+    });
+  });
+
+  if (points.length === 0 && texts.length === 0) {
+    return undefined;
+  }
+
+  return {
+    circles: [],
+    points,
+    texts,
+  };
+}
+
 export function registerGeneratedSchemaConverters(extensionContext: ExtensionContext): void {
   // Aggregated GeoJSON converter for cdcl_umd_msgs/msg/Assessment
   extensionContext.registerMessageConverter({
@@ -389,6 +551,16 @@ export function registerGeneratedSchemaConverters(extensionContext: ExtensionCon
       { path: ["position"], mode: "location", field: "position", color: "#ffd8b1" }
     ]),
   });
+  // Aggregated GeoJSON converter for cdcl_umd_msgs/msg/CasualtyImageWithLevel
+  extensionContext.registerMessageConverter({
+    type: "schema",
+    fromSchemaName: "cdcl_umd_msgs/msg/CasualtyImageWithLevel",
+    toSchemaName: "foxglove_msgs/msg/GeoJSON",
+    converter: (message: Immutable<unknown>, event: Immutable<MessageEvent<unknown>>) =>
+      convertGeoJsonFields(message, event, [
+      { path: ["position"], mode: "location", field: "position", color: "#f58231" }
+    ]),
+  });
   // Aggregated GeoJSON converter for cdcl_umd_msgs/msg/CasualtyLocation
   extensionContext.registerMessageConverter({
     type: "schema",
@@ -410,6 +582,16 @@ export function registerGeneratedSchemaConverters(extensionContext: ExtensionCon
       { path: ["position_submitted"], mode: "location", field: "position_submitted", color: "#46f0f0" }
     ]),
   });
+  // Aggregated GeoJSON converter for cdcl_umd_msgs/msg/Geofence
+  extensionContext.registerMessageConverter({
+    type: "schema",
+    fromSchemaName: "cdcl_umd_msgs/msg/Geofence",
+    toSchemaName: "foxglove_msgs/msg/GeoJSON",
+    converter: (message: Immutable<unknown>, event: Immutable<MessageEvent<unknown>>) =>
+      convertGeoJsonFields(message, event, [
+      { path: ["coordinates"], mode: "location_array", field: "coordinates", color: "#46f0f0" }
+    ]),
+  });
   // Aggregated GeoJSON converter for cdcl_umd_msgs/msg/KnownCasualtyLocations
   extensionContext.registerMessageConverter({
     type: "schema",
@@ -420,6 +602,16 @@ export function registerGeneratedSchemaConverters(extensionContext: ExtensionCon
       { path: ["casualty_locations", "position"], mode: "location_array", field: "casualty_locations.position", color: "#000075" }
     ]),
   });
+  // Aggregated GeoJSON converter for cdcl_umd_msgs/msg/MedicUpdate
+  extensionContext.registerMessageConverter({
+    type: "schema",
+    fromSchemaName: "cdcl_umd_msgs/msg/MedicUpdate",
+    toSchemaName: "foxglove_msgs/msg/GeoJSON",
+    converter: (message: Immutable<unknown>, event: Immutable<MessageEvent<unknown>>) =>
+      convertGeoJsonFields(message, event, [
+      { path: ["position"], mode: "location", field: "position", color: "#e6beff" }
+    ]),
+  });
   // Aggregated GeoJSON converter for cdcl_umd_msgs/msg/Observation
   extensionContext.registerMessageConverter({
     type: "schema",
@@ -428,6 +620,16 @@ export function registerGeneratedSchemaConverters(extensionContext: ExtensionCon
     converter: (message: Immutable<unknown>, event: Immutable<MessageEvent<unknown>>) =>
       convertGeoJsonFields(message, event, [
       { path: ["position"], mode: "location", field: "position", color: "#800000" }
+    ]),
+  });
+  // Aggregated GeoJSON converter for cdcl_umd_msgs/msg/ObservationWithLevel
+  extensionContext.registerMessageConverter({
+    type: "schema",
+    fromSchemaName: "cdcl_umd_msgs/msg/ObservationWithLevel",
+    toSchemaName: "foxglove_msgs/msg/GeoJSON",
+    converter: (message: Immutable<unknown>, event: Immutable<MessageEvent<unknown>>) =>
+      convertGeoJsonFields(message, event, [
+      { path: ["position"], mode: "location", field: "position", color: "#f58231" }
     ]),
   });
   // Aggregated GeoJSON converter for cdcl_umd_msgs/msg/Submission
@@ -451,7 +653,8 @@ export function registerGeneratedSchemaConverters(extensionContext: ExtensionCon
       { path: ["search_domain"], mode: "polygon", field: "search_domain", color: "#46f0f0" },
       { path: ["launch_zone"], mode: "polygon", field: "launch_zone", color: "#000075" },
       { path: ["known_casualties", "position"], mode: "location_array", field: "known_casualties.position", color: "#008080" },
-      { path: ["known_casualties", "position_submitted"], mode: "location_array", field: "known_casualties.position_submitted", color: "#46f0f0" }
+      { path: ["known_casualties", "position_submitted"], mode: "location_array", field: "known_casualties.position_submitted", color: "#46f0f0" },
+      { path: ["exclusion_zones", "coordinates"], mode: "polygon", field: "exclusion_zones.coordinates", color: "#3cb44b" }
     ]),
   });
   // Aggregated GeoJSON converter for cdcl_umd_msgs/msg/TargetBox
@@ -550,6 +753,22 @@ export function registerGeneratedSchemaConverters(extensionContext: ExtensionCon
     converter: (message: Immutable<unknown>, event: Immutable<MessageEvent<unknown>>) =>
       convertPassThrough(message, event, ["position_in_sensor_frame"], "point"),
   });
+  // CasualtyImageWithLevel__image__to__image
+  extensionContext.registerMessageConverter({
+    type: "schema",
+    fromSchemaName: "cdcl_umd_msgs/msg/CasualtyImageWithLevel",
+    toSchemaName: "sensor_msgs/msg/Image",
+    converter: (message: Immutable<unknown>, event: Immutable<MessageEvent<unknown>>) =>
+      convertPassThrough(message, event, ["image"], "image"),
+  });
+  // CasualtyImageWithLevel__position_in_sensor_frame__to__point
+  extensionContext.registerMessageConverter({
+    type: "schema",
+    fromSchemaName: "cdcl_umd_msgs/msg/CasualtyImageWithLevel",
+    toSchemaName: "geometry_msgs/msg/Point",
+    converter: (message: Immutable<unknown>, event: Immutable<MessageEvent<unknown>>) =>
+      convertPassThrough(message, event, ["position_in_sensor_frame"], "point"),
+  });
   // CasualtyReport__velocity__to__vector
   extensionContext.registerMessageConverter({
     type: "schema",
@@ -636,7 +855,7 @@ export function registerGeneratedSchemaConverters(extensionContext: ExtensionCon
     fromSchemaName: "cdcl_umd_msgs/msg/TargetBoxArray",
     toSchemaName: "sensor_msgs/msg/CompressedImage",
     converter: (message: Immutable<unknown>, event: Immutable<MessageEvent<unknown>>) =>
-      convertPassThrough(message, event, ["source_img"], "image"),
+      convertRootStampedImage(message, event, ["source_img"]),
   });
   // TargetHistoryArray__source_img__to__image
   extensionContext.registerMessageConverter({
@@ -653,5 +872,13 @@ export function registerGeneratedSchemaConverters(extensionContext: ExtensionCon
     toSchemaName: "geometry_msgs/msg/Quaternion",
     converter: (message: Immutable<unknown>, event: Immutable<MessageEvent<unknown>>) =>
       convertPassThrough(message, event, ["orientation"], "orientation"),
+  });
+  // TargetBoxArray__uav_target_boxes__to__image_annotations
+  extensionContext.registerMessageConverter({
+    type: "schema",
+    fromSchemaName: "cdcl_umd_msgs/msg/TargetBoxArray",
+    toSchemaName: "foxglove_msgs/msg/ImageAnnotations",
+    converter: (message: Immutable<unknown>, event: Immutable<MessageEvent<unknown>>) =>
+      convertBoundingBoxAnnotations(message, event, ["uav_target_boxes"]),
   });
 }
