@@ -2,18 +2,10 @@
   "name": "foxglove-schema-converters-workspace",
   "private": true,
   "workspaces": [
-    "cdcl-schema-converters",
-    "cdcl-topic-converters"
+    "cdcl-converters"
   ],
   "scripts": {
-    "generate:schema": "python3 scripts/generate_schema_converters.py",
-    "generate:topics": "python3 scripts/generate_topic_converters.py",
-    "generate": "npm run generate:schema && npm run generate:topics",
-    "audit": "python3 scripts/audit_convertible_fields.py",
-    "test": "node scripts/test_converter_runtime.mjs",
-    "build:schema": "npm --workspace cdcl-schema-converters run package",
-    "build:topics": "npm --workspace cdcl-topic-converters run package",
-    "build": "npm run generate && npm run build:schema && npm run build:topics",
-    "lint": "npm --workspace cdcl-schema-converters run lint && npm --workspace cdcl-topic-converters run lint"
+    "generate": "python3 scripts/generate_converters.py",
+    "build": "npm run generate && npm --workspace cdcl-converters run package"
   }
 }

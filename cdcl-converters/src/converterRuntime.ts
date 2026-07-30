@@ -1,14 +1,7 @@
-// Copied from shared/converterRuntime.ts by the converter generators.
-// Do not edit this copy; edit shared/converterRuntime.ts and re-run `npm run generate`.
-
-// Shared converter runtime for the CDCL Foxglove extensions.
+// Converter runtime: how every conversion is performed.
 //
-// This file is the single source of truth for *how* a conversion is performed.
-// `scripts/generate_schema_converters.py` and `scripts/generate_topic_converters.py`
-// copy it verbatim into each extension's `src/generated/` directory, and generate
-// only the *data* (converter specs) that drives it.
-//
-// Edit this file directly; re-run `npm run generate` to propagate the copies.
+// scripts/generate_converters.py emits only the data that drives this file
+// (./converterSpecs.ts), so all behaviour lives here and is type-checked.
 
 import { ExtensionContext, Immutable, MessageEvent } from "@foxglove/extension";
 
