@@ -4,6 +4,11 @@ node_modules/
 # Foxglove extension build output
 cdcl-schema-converters/dist/
 cdcl-schema-converters/*.foxe
+cdcl-topic-converters/dist/
+cdcl-topic-converters/*.foxe
+
+# Generated converter sources are committed on purpose: they are the record of
+# what each build exposed to Foxglove. Regenerate with `npm run generate`.
 
 # logs
 *.log
@@ -13,3 +18,7 @@ npm-debug.log*
 .DS_Store
 .vscode/*
 !.vscode/extensions.json
+
+# python
+__pycache__/
+*.pyc

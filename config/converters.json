@@ -1,0 +1,52 @@
+{
+  // Policy for the CDCL Foxglove converter generators.
+  //
+  // Everything that CAN be a schema converter IS one: schema converters are
+  // generated automatically for every convertible field of every .msg file, with
+  // no configuration at all. This file exists only to declare the exceptions.
+  //
+  // Why exceptions are needed
+  // -------------------------
+  // Foxglove registers at most one converter per (fromSchemaName, toSchemaName)
+  // pair. A message that carries several alternative NavSatFix localizations can
+  // therefore surface only ONE of them as its own map layer via a schema
+  // converter; the rest would be merged into a single GeoJSON feature collection
+  // and could not be toggled or coloured independently in the Map panel.
+  //
+  // A `topic_converters` rule splits those fields back apart: each one gets its
+  // own output topic, and is removed from the schema converter so nothing is
+  // rendered twice.
+  //
+  // Keys
+  // ----
+  //   schema      Source message, as `<package>/msg/<Message>`.
+  //   split_paths Dotted field-path prefixes this rule claims. Every location
+  //               field at or under a prefix becomes its own output topic. The
+  //               leaf fields are discovered from the .msg definitions, so
+  //               adding a new localization to TargetBox.msg automatically adds
+  //               a new output topic here — no edit needed.
+  //   topics      Input topic patterns. `{name}` placeholders expand against
+  //               `variables`. Topic converters must name their inputs
+  //               explicitly, so new topics do have to be listed here.
+  //   key_overrides  Pins an output-topic suffix for a field. Without an entry
+  //               the suffix is derived from the field name (with the prefix
+  //               shared by its siblings stripped). These exist to keep the
+  //               topic names that current Foxglove layouts already reference.
+  "topic_converters": [
+    {
+      "schema": "cdcl_umd_msgs/msg/TargetBoxArray",
+      "reason": "uav_target_boxes carries three alternative localizations per target (altimeter plane, gimbal plane, rangefinder). Each must be a separate Foxglove Map layer, which one GeoJSON schema converter cannot provide.",
+      "split_paths": ["uav_target_boxes"],
+      "topics": ["/uas{uas}/target_locations", "/uas{uas}/tf_localization/localized"],
+      "variables": {
+        "uas": [1, 2, 3, 4]
+      },
+      "output_topic_template": "{input_topic}/{key}",
+      "key_overrides": {
+        "uav_target_boxes.target_location_altimeter_plane": "altimeter",
+        "uav_target_boxes.target_location_gimbal_plane": "gimbal",
+        "uav_target_boxes.target_location_rangefinder": "rangefinder"
+      }
+    }
+  ]
+}

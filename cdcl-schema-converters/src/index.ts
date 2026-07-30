@@ -1,7 +1,8 @@
 import { ExtensionContext } from "@foxglove/extension";
 
-import { registerGeneratedSchemaConverters } from "./generatedSchemaConverters";
+import { registerSchemaConverters } from "./generated/converterRuntime";
+import { SCHEMA_CONVERTER_SPECS } from "./generated/schemaConverterSpecs";
 
 export function activate(extensionContext: ExtensionContext): void {
-  registerGeneratedSchemaConverters(extensionContext);
+  registerSchemaConverters(extensionContext, SCHEMA_CONVERTER_SPECS);
 }
