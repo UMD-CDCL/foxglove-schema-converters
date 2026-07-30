@@ -7,10 +7,19 @@ so the extension always matches the messages on disk.
 ## Quickstart
 
 ```bash
+# build
 ./build.py
 ```
 
 Then fully quit and reopen Foxglove Studio. Re-run after any message change.
+
+```bash
+# if using mcaps, just launch foxglove, open the mcap and you're good to go
+foxglove-studio # or using desktop or web app
+
+# if using db3s, launch foxglove from sourced environment and youre good to go
+foxglove-studio # from sourced environment only
+```
 
 Docker and Python 3 are the only requirements — the Node toolchain runs in the
 container.
