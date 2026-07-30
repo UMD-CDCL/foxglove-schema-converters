@@ -18,7 +18,14 @@ container.
 ```bash
 ./build.py --msgs /path/to/cdcl_umd_msgs   # default: ~/ros2_ws/src/cdcl_umd_msgs
 ./build.py --no-install                    # just produce the .foxe
+./build.py --ext-dir DIR                   # install somewhere else
 ```
+
+The extension is unpacked into `~/.foxglove-studio/extensions/`, where Foxglove
+Desktop looks for it. A snap install of Foxglove reads a sandboxed `$HOME`
+instead, so `~/snap/foxglove-studio/current/.foxglove-studio/extensions/` is used
+when a real snap is present. If Foxglove reports no installed extensions, check
+which of those two it is reading and pass `--ext-dir`.
 
 To install by hand instead, use `cdcl-converters/umdcdcl.cdcl-converters-1.0.0.foxe`
 (Foxglove **Settings → Extensions → Install from file**).

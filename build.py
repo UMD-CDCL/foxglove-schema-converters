@@ -7,6 +7,7 @@ extension always matches the message definitions on disk.
     ./build.py                          generate, build, install
     ./build.py --msgs ~/other/cdcl_umd_msgs
     ./build.py --no-install             stop after producing the .foxe
+    ./build.py --ext-dir DIR            install somewhere other than the default
 
 Everything except the final copy runs in Docker, so no local Node is needed.
 """
@@ -22,9 +23,15 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parent
 IMAGE = "cdcl-foxglove-build"
-EXT_ROOT = Path.home() / "snap" / "foxglove-studio" / "current" / ".foxglove-studio" / "extensions"
 
 DEFAULT_MSG_PKG = "~/ros2_ws/src/cdcl_umd_msgs"
+
+# Foxglove Desktop loads extensions from join(homedir, ".foxglove-studio",
+# "extensions"). Under snap, $HOME is redirected into the snap's own tree, so a
+# snap install reads a different path.
+DESKTOP_EXT_ROOT = Path.home() / ".foxglove-studio" / "extensions"
+SNAP_HOME = Path.home() / "snap" / "foxglove-studio" / "current"
+SNAP_EXT_ROOT = SNAP_HOME / ".foxglove-studio" / "extensions"
 
 # Extension directories this build replaces, cleared on install.
 SUPERSEDED = ("umd-cdcl.cdcl-converters-*", "umd-cdcl.cdcl-schema-converters-*",
@@ -75,31 +82,40 @@ def build(msg_pkg: Path) -> Path:
     return packages[0]
 
 
-def install(package: Path) -> None:
-    if not EXT_ROOT.parent.is_dir():
-        print("Foxglove Desktop (snap) not found; skipping install.")
-        print(f"Upload {package} manually instead.")
-        return
+def extension_roots(override: str | None) -> list[Path]:
+    if override:
+        return [Path(override).expanduser().resolve()]
 
+    roots = [DESKTOP_EXT_ROOT]
+
+    # snapd always symlinks `current` to the active revision. A plain directory
+    # is a leftover from an uninstalled snap, so writing there would be a no-op.
+    if SNAP_HOME.is_symlink():
+        roots.append(SNAP_EXT_ROOT)
+
+    return roots
+
+
+def install(roots: list[Path]) -> None:
     manifest = json.loads((REPO_ROOT / "cdcl-converters" / "package.json").read_text())
     ext_id = f"{manifest['publisher']}.{manifest['name']}-{manifest['version']}"
-
-    EXT_ROOT.mkdir(parents=True, exist_ok=True)
-
-    for pattern in SUPERSEDED:
-        for stale in EXT_ROOT.glob(pattern):
-            shutil.rmtree(stale, ignore_errors=True)
-
-    destination = EXT_ROOT / ext_id
-    destination.mkdir(parents=True)
-
     source = REPO_ROOT / "cdcl-converters"
-    shutil.copytree(source / "dist", destination / "dist")
 
-    for name in ("package.json", "README.md", "CHANGELOG.md"):
-        shutil.copy2(source / name, destination / name)
+    for root in roots:
+        root.mkdir(parents=True, exist_ok=True)
 
-    print(f"Installed: {destination}")
+        for pattern in SUPERSEDED:
+            for stale in root.glob(pattern):
+                shutil.rmtree(stale, ignore_errors=True)
+
+        destination = root / ext_id
+        shutil.copytree(source / "dist", destination / "dist")
+
+        for name in ("package.json", "README.md", "CHANGELOG.md"):
+            shutil.copy2(source / name, destination / name)
+
+        print(f"Installed: {destination}")
+
     print()
     print("Fully quit and reopen Foxglove Studio to load the extension.")
 
@@ -120,6 +136,10 @@ def main() -> None:
         action="store_true",
         help="Stop after producing the .foxe",
     )
+    parser.add_argument(
+        "--ext-dir",
+        help=f"Foxglove extensions directory (default: {DESKTOP_EXT_ROOT})",
+    )
     args = parser.parse_args()
 
     msg_pkg = Path(args.msgs).expanduser().resolve()
@@ -136,7 +156,7 @@ def main() -> None:
     print(f"Packaged:  {package}")
 
     if not args.no_install:
-        install(package)
+        install(extension_roots(args.ext_dir))
 
 
 if __name__ == "__main__":
