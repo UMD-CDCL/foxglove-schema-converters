@@ -3,9 +3,5 @@
   "private": true,
   "workspaces": [
     "cdcl-converters"
-  ],
-  "scripts": {
-    "generate": "python3 scripts/generate_converters.py",
-    "build": "npm run generate && npm --workspace cdcl-converters run package"
-  }
+  ]
 }

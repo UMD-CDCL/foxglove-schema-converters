@@ -12,7 +12,6 @@
     "ros2"
   ],
   "scripts": {
-    "build": "foxglove-extension build",
     "foxglove:prepublish": "foxglove-extension build --mode production",
     "package": "foxglove-extension package"
   },

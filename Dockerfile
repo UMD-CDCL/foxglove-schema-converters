@@ -1,5 +1,5 @@
 # Build environment for the CDCL Foxglove converter extension: Node for the
-# extension build, Python for the converter generator. Used by ./build.sh.
+# extension build, Python for the converter generator. Used by ./build.py.
 FROM node:20-bookworm-slim
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
