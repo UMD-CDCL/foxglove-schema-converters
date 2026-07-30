@@ -9,7 +9,7 @@ export type AnyMessage = Record<string, unknown>;
 export type FieldPath = readonly string[];
 
 type FoxgloveTime = { sec: number; nsec: number };
-type RosTime = { sec: number; nanosec: number };
+type RosTime = { sec: number; nsec: number; nanosec: number };
 
 /** A single NavSatFix-bearing path rendered as GeoJSON features. */
 export type GeoJsonEntry = {
@@ -229,8 +229,19 @@ function rootStamp(message: unknown, event: Immutable<MessageEvent>): FoxgloveTi
   return eventTime(event);
 }
 
+/**
+ * Header stamps must carry `nsec`, not just the ROS 2 `nanosec` spelling.
+ *
+ * Foxglove's ROS 2 deserializer emits `builtin_interfaces/Time` as `{sec, nsec}`,
+ * and its `normalizeTime` reads only `nsec` — a `{sec, nanosec}` stamp silently
+ * normalizes to `{sec, nsec: 0}`, truncating the image's timestamp to whole
+ * seconds. Image annotations are *not* normalized, so they keep their real
+ * nanoseconds, and the Image panel's "Sync annotations" compares the two for
+ * exact equality: the boxes never match a frame and never draw. Emit both
+ * spellings so the message still reads as ROS 2 in the Raw Messages panel.
+ */
 function toRosTime(time: FoxgloveTime): RosTime {
-  return { sec: time.sec, nanosec: time.nsec };
+  return { sec: time.sec, nsec: time.nsec, nanosec: time.nsec };
 }
 
 // ---------------------------------------------------------------------------
@@ -657,10 +668,9 @@ function convertImageAnnotations(
     });
   }
 
-  if (points.length === 0) {
-    return undefined;
-  }
-
+  // Emit an empty set rather than nothing when a message has no usable boxes.
+  // Returning undefined suppresses the message entirely, and Foxglove keeps the
+  // previous frame's boxes on screen; an empty ImageAnnotations clears them.
   return { circles: [], points, texts };
 }
 
