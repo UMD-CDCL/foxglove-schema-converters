@@ -7,18 +7,18 @@ displayable in Foxglove's built-in panels. The converters are generated from the
 ## Quickstart
 
 ```bash
-./build.sh
+./build.py
 ```
 
 Then fully quit and reopen Foxglove Studio.
 
 That regenerates the converters from `~/ros2_ws/src/cdcl_umd_msgs`, builds the
-extension in Docker, and installs it into Foxglove Desktop. Docker is the only
-requirement — no local Node or Python.
+extension in Docker, and installs it into Foxglove Desktop. Docker and Python 3
+are the only requirements — the Node toolchain runs in the container.
 
 ```bash
-./build.sh --no-install                  # just produce the .foxe
-CDCL_MSG_PKG=/path/to/cdcl_umd_msgs ./build.sh
+./build.py --msgs /path/to/cdcl_umd_msgs   # build against a different checkout
+./build.py --no-install                    # just produce the .foxe
 ```
 
 To upload by hand instead, use the packaged extension:
@@ -31,7 +31,7 @@ Foxglove Desktop: **Settings → Extensions → Install from file**. Foxglove we
 drag the `.foxe` onto the extensions page. The publisher is sanitized in the
 filename, so `umd-cdcl` appears as `umdcdcl`.
 
-Re-run `./build.sh` after any change to the messages.
+Re-run `./build.py` after any change to the messages.
 
 ## How messages are scanned
 
