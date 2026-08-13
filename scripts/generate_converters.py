@@ -17,7 +17,11 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 DEFAULT_OUT = REPO_ROOT / "cdcl-converters" / "src" / "converterSpecs.ts"
-DEFAULT_PACKAGES = ("/pkg", "~/ros2_ws/src/cdcl_umd_msgs")
+DEFAULT_PACKAGES = (
+    "/pkg",  # where build.py mounts the package inside the container
+    "~/ros2_ws/src/cdcl_umd_msgs",
+    "~/ros_workspaces/cdcl_ws/src/cdcl_umd_msgs",
+)
 
 MAX_DEPTH = 4
 
@@ -118,6 +122,35 @@ TOPIC_RULES = [
             "uav_target_boxes.target_location_gimbal_plane": "gimbal",
             "uav_target_boxes.target_location_rangefinder": "rangefinder",
         },
+    },
+]
+
+# ---------------------------------------------------------------------------
+# 3D marker policy
+# ---------------------------------------------------------------------------
+# The 3D panel is Cartesian, so geodetic fixes have to be resolved against a
+# local origin. That origin is per-mission and arrives on its own topic, and
+# reading two topics is something only a topic converter can do.
+#
+# Listed per schema rather than driven by field type: a NavSatFix target would
+# hand a 3D view to every message that carries one, and each needs an origin
+# topic chosen for it. Fields keep their schema converters too, so the Map view
+# of the same message survives.
+
+SCENE_RULES = [
+    {
+        "schema": "cdcl_umd_msgs/msg/KnownCasualtyLocations",
+        "topics": ["/known_casualty_locations"],
+        "origin_topic": "/launch_zone_fiducial",
+        # Markers are placed in ENU metres from the origin fix, so frame_id has to
+        # name a frame already in the drones' tf tree or they float unconnected.
+        # d3_fiducial_offset is currently an identity child of uas3_home_position,
+        # so this holds only while the origin fix coincides with UAS3's home
+        # position. Retarget to the shared "fiducial" frame once that exists.
+        "frame_id": "d3_fiducial_offset",
+        "entity_id": "known_casualties",
+        "suffix": "markers",
+        "label": "Casualty",
     },
 ]
 
@@ -300,6 +333,11 @@ def label_fields(siblings: tuple[str, ...]) -> list[str]:
     return [name for _, name in ranked[:3]]
 
 
+def property_fields(item: Convertible) -> list[str]:
+    """Primitive siblings of the field, carried alongside it as context."""
+    return [name for name in item.siblings if name != item.leaf][:12]
+
+
 def geojson_entry(item: Convertible, label: str) -> dict:
     entry = {
         "path": list(item.path),
@@ -307,7 +345,19 @@ def geojson_entry(item: Convertible, label: str) -> dict:
         "geometry": item.geometry,
         "color": item.color,
     }
-    properties = [name for name in item.siblings if name != item.leaf][:12]
+    properties = property_fields(item)
+    if properties:
+        entry["propertyFields"] = properties
+    return entry
+
+
+def scene_entry(item: Convertible, label: str) -> dict:
+    entry = {
+        "path": list(item.path),
+        "label": label,
+        "color": item.color,
+    }
+    properties = property_fields(item)
     if properties:
         entry["propertyFields"] = properties
     return entry
@@ -396,6 +446,54 @@ def derive_key(item: Convertible, group: list[Convertible], overrides: dict) -> 
     return "_".join(tokens[shared:]) or item.leaf
 
 
+GEO_FIX_TYPES = ("sensor_msgs/NavSatFix", "gps_msgs/GPSFix")
+
+
+def scene_specs_for(rule: dict, found: list[Convertible], index: dict) -> list[dict]:
+    """One SceneUpdate topic converter per topic the rule names.
+
+    Every geodetic field on the message goes into a single entity, so the whole
+    message toggles as one layer in the 3D panel. The fields are also left on
+    their schema converters, keeping the Map view intact.
+    """
+    items = [item for item in found if item.base_type in GEO_FIX_TYPES]
+    if not items:
+        return []
+
+    labels = labels_for(items)
+    base = rule.get("label")
+
+    def label_for(item: Convertible) -> str:
+        if base is None:
+            return labels[item.dotted]
+        return base if len(items) == 1 else f"{base} {labels[item.dotted]}"
+
+    op = {
+        "kind": "scene_update",
+        "originTopic": rule["origin_topic"],
+        "frameId": rule["frame_id"],
+        "entityId": rule["entity_id"],
+        "entries": [scene_entry(item, label_for(item)) for item in items],
+    }
+
+    root = f"{rule['schema'].split('/')[0]}/{rule['schema'].split('/')[-1]}"
+    metadata = [
+        f.name for f in index.get(root, ()) if f.base_type in ROS_PRIMITIVES and not f.is_array
+    ]
+    if metadata:
+        op["metadataFields"] = metadata
+
+    return [
+        {
+            "inputTopics": [topic, rule["origin_topic"]],
+            "outputTopic": f"{topic}/{rule['suffix']}",
+            "outputSchemaName": "foxglove_msgs/msg/SceneUpdate",
+            "op": op,
+        }
+        for topic in rule["topics"]
+    ]
+
+
 def build_specs(package: str, index: dict) -> tuple[list[dict], list[dict], list[str]]:
     schema_specs: list[dict] = []
     topic_specs: list[dict] = []
@@ -405,10 +503,20 @@ def build_specs(package: str, index: dict) -> tuple[list[dict], list[dict], list
     for rule in TOPIC_RULES:
         rules_by_schema.setdefault(rule["schema"], []).append(rule)
 
+    scenes_by_schema: dict[str, list[dict]] = {}
+    for rule in SCENE_RULES:
+        scenes_by_schema.setdefault(rule["schema"], []).append(rule)
+
     for type_name in sorted(index):
         schema = f"{package}/msg/{type_name.split('/')[-1]}"
         found, skipped = walk(schema, index)
         notes.extend(f"{schema}: skipped {note}" for note in skipped)
+
+        for rule in scenes_by_schema.pop(schema, []):
+            specs = scene_specs_for(rule, found, index)
+            if not specs:
+                notes.append(f"{schema}: scene rule matched no geodetic field")
+            topic_specs.extend(specs)
 
         # Fields a topic converter owns are removed from the schema converter, so
         # nothing is rendered twice.
@@ -423,7 +531,7 @@ def build_specs(package: str, index: dict) -> tuple[list[dict], list[dict], list
                 for topic in rule["topics"]:
                     topic_specs.append(
                         {
-                            "inputTopic": topic,
+                            "inputTopics": [topic],
                             "outputTopic": f"{topic}/{key}",
                             "outputSchemaName": item.options[0][1],
                             "op": op,
@@ -475,8 +583,12 @@ def build_specs(package: str, index: dict) -> tuple[list[dict], list[dict], list
                 {"fromSchemaName": schema, "toSchemaName": to_schema, "op": op}
             )
 
+    # Anything left never matched a message: almost always a typo in the rule.
+    for schema in scenes_by_schema:
+        raise SystemExit(f"SCENE_RULES names {schema}, which is not in the package")
+
     schema_specs.sort(key=lambda s: (s["fromSchemaName"], s["toSchemaName"]))
-    topic_specs.sort(key=lambda s: (s["inputTopic"], s["outputTopic"]))
+    topic_specs.sort(key=lambda s: (s["inputTopics"][0], s["outputTopic"]))
 
     seen_pairs = {(s["fromSchemaName"], s["toSchemaName"]) for s in schema_specs}
     if len(seen_pairs) != len(schema_specs):

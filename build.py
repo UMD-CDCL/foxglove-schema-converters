@@ -24,7 +24,11 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parent
 IMAGE = "cdcl-foxglove-build"
 
-DEFAULT_MSG_PKG = "~/ros2_ws/src/cdcl_umd_msgs"
+# Searched in order when --msgs is not given; the first with a msg/ wins.
+DEFAULT_MSG_PKGS = (
+    "~/ros2_ws/src/cdcl_umd_msgs",
+    "~/ros_workspaces/cdcl_ws/src/cdcl_umd_msgs",
+)
 
 # Foxglove Desktop loads extensions from join(homedir, ".foxglove-studio",
 # "extensions"). Under snap, $HOME is redirected into the snap's own tree, so a
@@ -53,6 +57,21 @@ def run(command: list[str], **kwargs) -> subprocess.CompletedProcess:
         sys.exit(f"ERROR: {command[0]} not found. Docker is required.")
     except subprocess.CalledProcessError as error:
         sys.exit(f"ERROR: {command[0]} failed with exit code {error.returncode}")
+
+
+def resolve_msg_pkg(explicit: str | None) -> Path:
+    candidates = [explicit] if explicit else list(DEFAULT_MSG_PKGS)
+
+    for candidate in candidates:
+        path = Path(candidate).expanduser().resolve()
+        if (path / "msg").is_dir():
+            return path
+
+    sys.exit(
+        "ERROR: no cdcl_umd_msgs package with a msg/ directory found. Searched: "
+        + ", ".join(str(Path(c).expanduser()) for c in candidates)
+        + "\nPass --msgs with your cdcl_umd_msgs checkout."
+    )
 
 
 def build(msg_pkg: Path) -> Path:
@@ -128,8 +147,10 @@ def main() -> None:
     parser.add_argument(
         "-m",
         "--msgs",
-        default=os.environ.get("CDCL_MSG_PKG", DEFAULT_MSG_PKG),
-        help=f"cdcl_umd_msgs package directory (default: {DEFAULT_MSG_PKG})",
+        default=os.environ.get("CDCL_MSG_PKG"),
+        help="cdcl_umd_msgs package directory (default: first of "
+        + ", ".join(DEFAULT_MSG_PKGS)
+        + " that exists)",
     )
     parser.add_argument(
         "--no-install",
@@ -142,13 +163,7 @@ def main() -> None:
     )
     args = parser.parse_args()
 
-    msg_pkg = Path(args.msgs).expanduser().resolve()
-
-    if not (msg_pkg / "msg").is_dir():
-        sys.exit(
-            f"ERROR: no msg/ directory in {msg_pkg}\n"
-            f"Pass --msgs with your cdcl_umd_msgs checkout."
-        )
+    msg_pkg = resolve_msg_pkg(args.msgs)
 
     print(f"Messages:  {msg_pkg}")
 

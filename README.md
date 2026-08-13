@@ -37,7 +37,9 @@ when a real snap is present. If Foxglove reports no installed extensions, check
 which of those two it is reading and pass `--ext-dir`.
 
 To install by hand instead, use `cdcl-converters/umdcdcl.cdcl-converters-1.0.0.foxe`
-(Foxglove **Settings → Extensions → Install from file**).
+(Foxglove **Settings → Extensions → Install from file**). The archive drops the
+hyphen from the `umd-cdcl` publisher name while the installed directory keeps it
+(`umd-cdcl.cdcl-converters-1.0.0`); both spellings are correct.
 
 ## How it works
 
@@ -76,6 +78,7 @@ converters, which create new topics; see below.
 | `geometry_msgs/Quaternion`, `Pose`, `Point`, `Vector3`, … | matching ROS schema | 3D / Raw |
 | `uint8[] raw_audio` | `foxglove_msgs/msg/RawAudio` | Audio |
 | Text-ish `string` fields | `foxglove_msgs/msg/Log` | Log |
+| Casualty locations, anchored to a fiducial | `foxglove_msgs/msg/SceneUpdate` | 3D |
 
 Location and bounding-box fields merge into one output each, so all targets in a
 message draw together. A `NavSatFix` at exactly `0, 0` is treated as unlocalized
@@ -111,3 +114,35 @@ Existing layouts: UAV location, local pose and gimbal attitude used to be
 separate `/uas#/target_locations/...` topics. They are now on the parent topic
 under their own schema — select `/uas#/target_locations` in the panel. The three
 localization topics above are unchanged.
+
+## Casualty markers in the 3D panel
+
+```text
+/known_casualty_locations/markers    foxglove_msgs/msg/SceneUpdate
+```
+
+One labelled sphere per casualty, so they can be seen in the **3D** panel rather
+than only on the Map. The Map view is unaffected — the same fields still feed the
+GeoJSON converter.
+
+The 3D panel is Cartesian while a `NavSatFix` is geodetic, so the fixes are
+resolved into local ENU metres against an origin. That origin is per-mission and
+arrives on a **second topic**, `/launch_zone_fiducial` — which is why this is a
+topic converter: a schema converter only ever sees one message.
+
+Two consequences worth knowing:
+
+- **The markers are emitted into `d3_fiducial_offset`**, so they share the drones'
+  TF tree. That frame is presently an identity child of `uas3_home_position`, which
+  means the placement is only correct while the origin fix coincides with UAS3's
+  home position — a stopgap until a shared `fiducial` frame exists. Change
+  `frame_id` in the rule to retarget. If the panel is empty, a display frame with
+  no path to this one is the usual cause.
+- **Nothing is drawn until the first fiducial arrives.** The first valid fix is
+  kept for the session and later ones ignored, so the frame never drifts; a
+  guessed origin would place markers wrongly without looking wrong. Seeking to a
+  point before the first fiducial therefore shows an empty scene.
+
+Add a message to `SCENE_RULES` in `scripts/generate_converters.py` to give another
+schema the same treatment. The geodetic fields are found in the `.msg` files; the
+rule only names the topics, the origin topic and the frame.

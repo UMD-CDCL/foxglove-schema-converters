@@ -828,7 +828,39 @@ export const SCHEMA_CONVERTER_SPECS: readonly SchemaConverterSpec[] =
 export const TOPIC_CONVERTER_SPECS: readonly TopicConverterSpec[] =
   [
   {
-    "inputTopic": "/uas1/target_locations",
+    "inputTopics": [
+      "/known_casualty_locations",
+      "/launch_zone_fiducial"
+    ],
+    "outputTopic": "/known_casualty_locations/markers",
+    "outputSchemaName": "foxglove_msgs/msg/SceneUpdate",
+    "op": {
+      "kind": "scene_update",
+      "originTopic": "/launch_zone_fiducial",
+      "frameId": "d3_fiducial_offset",
+      "entityId": "known_casualties",
+      "entries": [
+        {
+          "path": [
+            "casualty_locations",
+            "position"
+          ],
+          "label": "Casualty",
+          "color": "#008080",
+          "propertyFields": [
+            "casualty_id"
+          ]
+        }
+      ],
+      "metadataFields": [
+        "is_ground_truth"
+      ]
+    }
+  },
+  {
+    "inputTopics": [
+      "/uas1/target_locations"
+    ],
     "outputTopic": "/uas1/target_locations/altimeter",
     "outputSchemaName": "foxglove_msgs/msg/GeoJSON",
     "op": {
@@ -853,7 +885,9 @@ export const TOPIC_CONVERTER_SPECS: readonly TopicConverterSpec[] =
     }
   },
   {
-    "inputTopic": "/uas1/target_locations",
+    "inputTopics": [
+      "/uas1/target_locations"
+    ],
     "outputTopic": "/uas1/target_locations/gimbal",
     "outputSchemaName": "foxglove_msgs/msg/GeoJSON",
     "op": {
@@ -878,7 +912,9 @@ export const TOPIC_CONVERTER_SPECS: readonly TopicConverterSpec[] =
     }
   },
   {
-    "inputTopic": "/uas1/target_locations",
+    "inputTopics": [
+      "/uas1/target_locations"
+    ],
     "outputTopic": "/uas1/target_locations/rangefinder",
     "outputSchemaName": "foxglove_msgs/msg/GeoJSON",
     "op": {
@@ -903,7 +939,9 @@ export const TOPIC_CONVERTER_SPECS: readonly TopicConverterSpec[] =
     }
   },
   {
-    "inputTopic": "/uas1/tf_localization/localized",
+    "inputTopics": [
+      "/uas1/tf_localization/localized"
+    ],
     "outputTopic": "/uas1/tf_localization/localized/altimeter",
     "outputSchemaName": "foxglove_msgs/msg/GeoJSON",
     "op": {
@@ -928,7 +966,9 @@ export const TOPIC_CONVERTER_SPECS: readonly TopicConverterSpec[] =
     }
   },
   {
-    "inputTopic": "/uas1/tf_localization/localized",
+    "inputTopics": [
+      "/uas1/tf_localization/localized"
+    ],
     "outputTopic": "/uas1/tf_localization/localized/gimbal",
     "outputSchemaName": "foxglove_msgs/msg/GeoJSON",
     "op": {
@@ -953,7 +993,9 @@ export const TOPIC_CONVERTER_SPECS: readonly TopicConverterSpec[] =
     }
   },
   {
-    "inputTopic": "/uas1/tf_localization/localized",
+    "inputTopics": [
+      "/uas1/tf_localization/localized"
+    ],
     "outputTopic": "/uas1/tf_localization/localized/rangefinder",
     "outputSchemaName": "foxglove_msgs/msg/GeoJSON",
     "op": {
@@ -978,7 +1020,9 @@ export const TOPIC_CONVERTER_SPECS: readonly TopicConverterSpec[] =
     }
   },
   {
-    "inputTopic": "/uas2/target_locations",
+    "inputTopics": [
+      "/uas2/target_locations"
+    ],
     "outputTopic": "/uas2/target_locations/altimeter",
     "outputSchemaName": "foxglove_msgs/msg/GeoJSON",
     "op": {
@@ -1003,7 +1047,9 @@ export const TOPIC_CONVERTER_SPECS: readonly TopicConverterSpec[] =
     }
   },
   {
-    "inputTopic": "/uas2/target_locations",
+    "inputTopics": [
+      "/uas2/target_locations"
+    ],
     "outputTopic": "/uas2/target_locations/gimbal",
     "outputSchemaName": "foxglove_msgs/msg/GeoJSON",
     "op": {
@@ -1028,7 +1074,9 @@ export const TOPIC_CONVERTER_SPECS: readonly TopicConverterSpec[] =
     }
   },
   {
-    "inputTopic": "/uas2/target_locations",
+    "inputTopics": [
+      "/uas2/target_locations"
+    ],
     "outputTopic": "/uas2/target_locations/rangefinder",
     "outputSchemaName": "foxglove_msgs/msg/GeoJSON",
     "op": {
@@ -1053,7 +1101,9 @@ export const TOPIC_CONVERTER_SPECS: readonly TopicConverterSpec[] =
     }
   },
   {
-    "inputTopic": "/uas2/tf_localization/localized",
+    "inputTopics": [
+      "/uas2/tf_localization/localized"
+    ],
     "outputTopic": "/uas2/tf_localization/localized/altimeter",
     "outputSchemaName": "foxglove_msgs/msg/GeoJSON",
     "op": {
@@ -1078,7 +1128,9 @@ export const TOPIC_CONVERTER_SPECS: readonly TopicConverterSpec[] =
     }
   },
   {
-    "inputTopic": "/uas2/tf_localization/localized",
+    "inputTopics": [
+      "/uas2/tf_localization/localized"
+    ],
     "outputTopic": "/uas2/tf_localization/localized/gimbal",
     "outputSchemaName": "foxglove_msgs/msg/GeoJSON",
     "op": {
@@ -1103,7 +1155,9 @@ export const TOPIC_CONVERTER_SPECS: readonly TopicConverterSpec[] =
     }
   },
   {
-    "inputTopic": "/uas2/tf_localization/localized",
+    "inputTopics": [
+      "/uas2/tf_localization/localized"
+    ],
     "outputTopic": "/uas2/tf_localization/localized/rangefinder",
     "outputSchemaName": "foxglove_msgs/msg/GeoJSON",
     "op": {
@@ -1128,7 +1182,9 @@ export const TOPIC_CONVERTER_SPECS: readonly TopicConverterSpec[] =
     }
   },
   {
-    "inputTopic": "/uas3/target_locations",
+    "inputTopics": [
+      "/uas3/target_locations"
+    ],
     "outputTopic": "/uas3/target_locations/altimeter",
     "outputSchemaName": "foxglove_msgs/msg/GeoJSON",
     "op": {
@@ -1153,7 +1209,9 @@ export const TOPIC_CONVERTER_SPECS: readonly TopicConverterSpec[] =
     }
   },
   {
-    "inputTopic": "/uas3/target_locations",
+    "inputTopics": [
+      "/uas3/target_locations"
+    ],
     "outputTopic": "/uas3/target_locations/gimbal",
     "outputSchemaName": "foxglove_msgs/msg/GeoJSON",
     "op": {
@@ -1178,7 +1236,9 @@ export const TOPIC_CONVERTER_SPECS: readonly TopicConverterSpec[] =
     }
   },
   {
-    "inputTopic": "/uas3/target_locations",
+    "inputTopics": [
+      "/uas3/target_locations"
+    ],
     "outputTopic": "/uas3/target_locations/rangefinder",
     "outputSchemaName": "foxglove_msgs/msg/GeoJSON",
     "op": {
@@ -1203,7 +1263,9 @@ export const TOPIC_CONVERTER_SPECS: readonly TopicConverterSpec[] =
     }
   },
   {
-    "inputTopic": "/uas3/tf_localization/localized",
+    "inputTopics": [
+      "/uas3/tf_localization/localized"
+    ],
     "outputTopic": "/uas3/tf_localization/localized/altimeter",
     "outputSchemaName": "foxglove_msgs/msg/GeoJSON",
     "op": {
@@ -1228,7 +1290,9 @@ export const TOPIC_CONVERTER_SPECS: readonly TopicConverterSpec[] =
     }
   },
   {
-    "inputTopic": "/uas3/tf_localization/localized",
+    "inputTopics": [
+      "/uas3/tf_localization/localized"
+    ],
     "outputTopic": "/uas3/tf_localization/localized/gimbal",
     "outputSchemaName": "foxglove_msgs/msg/GeoJSON",
     "op": {
@@ -1253,7 +1317,9 @@ export const TOPIC_CONVERTER_SPECS: readonly TopicConverterSpec[] =
     }
   },
   {
-    "inputTopic": "/uas3/tf_localization/localized",
+    "inputTopics": [
+      "/uas3/tf_localization/localized"
+    ],
     "outputTopic": "/uas3/tf_localization/localized/rangefinder",
     "outputSchemaName": "foxglove_msgs/msg/GeoJSON",
     "op": {
@@ -1278,7 +1344,9 @@ export const TOPIC_CONVERTER_SPECS: readonly TopicConverterSpec[] =
     }
   },
   {
-    "inputTopic": "/uas4/target_locations",
+    "inputTopics": [
+      "/uas4/target_locations"
+    ],
     "outputTopic": "/uas4/target_locations/altimeter",
     "outputSchemaName": "foxglove_msgs/msg/GeoJSON",
     "op": {
@@ -1303,7 +1371,9 @@ export const TOPIC_CONVERTER_SPECS: readonly TopicConverterSpec[] =
     }
   },
   {
-    "inputTopic": "/uas4/target_locations",
+    "inputTopics": [
+      "/uas4/target_locations"
+    ],
     "outputTopic": "/uas4/target_locations/gimbal",
     "outputSchemaName": "foxglove_msgs/msg/GeoJSON",
     "op": {
@@ -1328,7 +1398,9 @@ export const TOPIC_CONVERTER_SPECS: readonly TopicConverterSpec[] =
     }
   },
   {
-    "inputTopic": "/uas4/target_locations",
+    "inputTopics": [
+      "/uas4/target_locations"
+    ],
     "outputTopic": "/uas4/target_locations/rangefinder",
     "outputSchemaName": "foxglove_msgs/msg/GeoJSON",
     "op": {
@@ -1353,7 +1425,9 @@ export const TOPIC_CONVERTER_SPECS: readonly TopicConverterSpec[] =
     }
   },
   {
-    "inputTopic": "/uas4/tf_localization/localized",
+    "inputTopics": [
+      "/uas4/tf_localization/localized"
+    ],
     "outputTopic": "/uas4/tf_localization/localized/altimeter",
     "outputSchemaName": "foxglove_msgs/msg/GeoJSON",
     "op": {
@@ -1378,7 +1452,9 @@ export const TOPIC_CONVERTER_SPECS: readonly TopicConverterSpec[] =
     }
   },
   {
-    "inputTopic": "/uas4/tf_localization/localized",
+    "inputTopics": [
+      "/uas4/tf_localization/localized"
+    ],
     "outputTopic": "/uas4/tf_localization/localized/gimbal",
     "outputSchemaName": "foxglove_msgs/msg/GeoJSON",
     "op": {
@@ -1403,7 +1479,9 @@ export const TOPIC_CONVERTER_SPECS: readonly TopicConverterSpec[] =
     }
   },
   {
-    "inputTopic": "/uas4/tf_localization/localized",
+    "inputTopics": [
+      "/uas4/tf_localization/localized"
+    ],
     "outputTopic": "/uas4/tf_localization/localized/rangefinder",
     "outputSchemaName": "foxglove_msgs/msg/GeoJSON",
     "op": {

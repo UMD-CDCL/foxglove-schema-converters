@@ -42,6 +42,17 @@ export type LogEntry = {
   label: string;
 };
 
+/** A NavSatFix-bearing path rendered as labelled spheres in a local ENU frame. */
+export type SceneEntry = {
+  path: FieldPath;
+  /** Human-readable name prefixed to each marker's text label. */
+  label: string;
+  /** Hex color (e.g. "#e6194b") applied to the spheres. */
+  color: string;
+  /** Sibling fields of each fix's container appended to the text label. */
+  propertyFields?: readonly string[];
+};
+
 /**
  * A conversion operation. Each variant is fully described by data so that the
  * code generators never have to emit logic.
@@ -54,7 +65,21 @@ export type ConverterOp =
   | { kind: "audio"; path: FieldPath; stampPath?: FieldPath }
   | { kind: "log"; entries: readonly LogEntry[] }
   | { kind: "pose_array"; path: FieldPath }
-  | { kind: "passthrough"; path: FieldPath };
+  | { kind: "passthrough"; path: FieldPath }
+  // Topic converters only: needs an origin read from a second topic, which a
+  // schema converter cannot see. See applyTopicOp.
+  | {
+      kind: "scene_update";
+      /** Topic supplying the NavSatFix that anchors the local frame. */
+      originTopic: string;
+      /** frame_id stamped on the emitted entity. */
+      frameId: string;
+      /** Entity id; a later entity with the same id replaces this one. */
+      entityId: string;
+      /** Root-level primitive fields copied into the entity's metadata. */
+      metadataFields?: readonly string[];
+      entries: readonly SceneEntry[];
+    };
 
 export type SchemaConverterSpec = {
   fromSchemaName: string;
@@ -63,7 +88,12 @@ export type SchemaConverterSpec = {
 };
 
 export type TopicConverterSpec = {
-  inputTopic: string;
+  /**
+   * Every topic the converter needs. The first is the one being converted; any
+   * others supply context (a scene_update's origin, say) and produce no output
+   * of their own.
+   */
+  inputTopics: readonly string[];
   outputTopic: string;
   outputSchemaName: string;
   op: ConverterOp;
@@ -78,6 +108,12 @@ const ANNOTATION_FONT_SIZE = 20;
 const ANNOTATION_THICKNESS = 2;
 
 const LOG_LEVEL_INFO = 2;
+
+const MARKER_DIAMETER = 1.0;
+const MARKER_ALPHA = 0.8;
+/** Height above the sphere centre at which the text label floats, in metres. */
+const MARKER_LABEL_HEIGHT = 1.0;
+const MARKER_LABEL_FONT_SIZE = 14;
 
 // ---------------------------------------------------------------------------
 // Generic value helpers
@@ -539,6 +575,168 @@ function convertGeoJson(
 }
 
 // ---------------------------------------------------------------------------
+// Scene markers
+// ---------------------------------------------------------------------------
+
+const WGS84_A = 6378137.0;
+const WGS84_E2 = 6.69437999014e-3;
+const DEG2RAD = Math.PI / 180;
+
+type Point3D = { x: number; y: number; z: number };
+
+/** Markers are axis-aligned; each primitive gets its own literal, never a shared one. */
+function identityOrientation(): AnyMessage {
+  return { x: 0, y: 0, z: 0, w: 1 };
+}
+
+/**
+ * Local ENU offset in metres from `origin`: x east, y north, z up.
+ *
+ * Uses the standard local-tangent-plane approximation — the earth's curvature
+ * radii evaluated once at the origin latitude — which holds to well under a
+ * metre across the few kilometres of a course. Both fixes must already have
+ * passed isValidNavSatFix; a missing altitude counts as 0 so a fix with no
+ * vertical measurement lands on the origin's plane rather than vanishing.
+ */
+function llaToEnu(fix: AnyMessage, origin: AnyMessage): Point3D {
+  const originLat = origin.latitude as number;
+  const originLon = origin.longitude as number;
+  const lat0 = originLat * DEG2RAD;
+  const sinLat = Math.sin(lat0);
+  const denom = 1 - WGS84_E2 * sinLat * sinLat;
+
+  const primeVertical = WGS84_A / Math.sqrt(denom);
+  const meridional = (WGS84_A * (1 - WGS84_E2)) / (denom * Math.sqrt(denom));
+
+  const deltaLat = ((fix.latitude as number) - originLat) * DEG2RAD;
+  const deltaLon = ((fix.longitude as number) - originLon) * DEG2RAD;
+  const altitude = isFiniteNumber(fix.altitude) ? fix.altitude : 0;
+  const originAltitude = isFiniteNumber(origin.altitude) ? origin.altitude : 0;
+
+  return {
+    x: deltaLon * primeVertical * Math.cos(lat0),
+    y: deltaLat * meridional,
+    z: altitude - originAltitude,
+  };
+}
+
+/** `label`, followed by each present property field, e.g. "Casualty 7". */
+function markerLabel(
+  container: AnyMessage | undefined,
+  entry: SceneEntry,
+  index: number,
+): string {
+  const parts: string[] = [entry.label];
+
+  for (const propertyField of entry.propertyFields ?? []) {
+    const value = container?.[propertyField];
+
+    if (value == undefined || typeof value === "object") {
+      continue;
+    }
+
+    if (isFiniteNumber(value)) {
+      parts.push(Number.isInteger(value) ? String(value) : value.toFixed(2));
+      continue;
+    }
+
+    const text = toText(value);
+
+    if (text.length > 0) {
+      parts.push(text);
+    }
+  }
+
+  return parts.length > 1 ? parts.join(" ") : `${entry.label} ${index}`;
+}
+
+function sceneMetadata(
+  message: unknown,
+  metadataFields: readonly string[] | undefined,
+): AnyMessage[] {
+  const root = asObject(message);
+  const metadata: AnyMessage[] = [];
+
+  for (const field of metadataFields ?? []) {
+    const value = root?.[field];
+
+    if (value == undefined || typeof value === "object") {
+      continue;
+    }
+
+    metadata.push({ key: field, value: toText(value) });
+  }
+
+  return metadata;
+}
+
+/**
+ * Renders every fix as a sphere plus a floating label, positioned relative to
+ * `origin`. Callers must supply the origin; there is no fallback, because a
+ * marker drawn against a guessed origin is wrong without looking wrong.
+ */
+function convertSceneUpdate(
+  message: unknown,
+  event: Immutable<MessageEvent>,
+  op: Extract<ConverterOp, { kind: "scene_update" }>,
+  origin: AnyMessage,
+): AnyMessage {
+  // A foxglove_msgs timestamp, so {sec, nsec} as rootStamp already provides —
+  // toRosTime's dual spelling is only needed for ROS header stamps.
+  const timestamp = rootStamp(message, event);
+  const spheres: AnyMessage[] = [];
+  const texts: AnyMessage[] = [];
+
+  for (const entry of op.entries) {
+    resolveFixes(message, entry.path).forEach(({ fix, container }, index) => {
+      const position = llaToEnu(fix, origin);
+
+      spheres.push({
+        pose: { position, orientation: identityOrientation() },
+        size: { x: MARKER_DIAMETER, y: MARKER_DIAMETER, z: MARKER_DIAMETER },
+        color: hexToRgba(entry.color, MARKER_ALPHA),
+      });
+
+      texts.push({
+        pose: {
+          position: { ...position, z: position.z + MARKER_LABEL_HEIGHT },
+          orientation: identityOrientation(),
+        },
+        billboard: true,
+        font_size: MARKER_LABEL_FONT_SIZE,
+        scale_invariant: true,
+        color: { r: 1, g: 1, b: 1, a: 1 },
+        text: markerLabel(container, entry, index),
+      });
+    });
+  }
+
+  // Always emit the entity, even with no primitives: it carries the same id as
+  // the previous one and so replaces it, which is what clears stale markers.
+  return {
+    deletions: [],
+    entities: [
+      {
+        timestamp,
+        frame_id: op.frameId,
+        id: op.entityId,
+        lifetime: { sec: 0, nsec: 0 },
+        frame_locked: true,
+        metadata: sceneMetadata(message, op.metadataFields),
+        arrows: [],
+        cubes: [],
+        spheres,
+        cylinders: [],
+        lines: [],
+        triangles: [],
+        texts,
+        models: [],
+      },
+    ],
+  };
+}
+
+// ---------------------------------------------------------------------------
 // Image annotations
 // ---------------------------------------------------------------------------
 
@@ -805,7 +1003,46 @@ export function applyOp(
       return convertPoseArray(message, event, op.path);
     case "passthrough":
       return convertPassThrough(message, op.path);
+    case "scene_update":
+      // Unreachable via a schema converter: the origin comes from a second
+      // topic, so only applyTopicOp can run this op.
+      return undefined;
   }
+}
+
+/** Per-converter-instance state, held for the life of the create() closure. */
+type ConverterState = { origin?: AnyMessage };
+
+/**
+ * Dispatch for topic converters, which — unlike schema converters — see several
+ * topics and may carry state between messages.
+ */
+export function applyTopicOp(
+  op: ConverterOp,
+  messageEvent: Immutable<MessageEvent>,
+  state: ConverterState,
+): AnyMessage | undefined {
+  if (op.kind !== "scene_update") {
+    return applyOp(op, messageEvent.message, messageEvent);
+  }
+
+  if (messageEvent.topic === op.originTopic) {
+    const candidate = messageEvent.message;
+
+    // The first valid fiducial wins and is then held for the session: adopting
+    // later fixes would shift every marker by the GPS noise between them.
+    if (state.origin == undefined && isValidNavSatFix(candidate)) {
+      state.origin = candidate;
+    }
+
+    // The origin topic contributes no output of its own.
+    return undefined;
+  }
+
+  // Nothing is drawn until an origin arrives; see convertSceneUpdate.
+  return state.origin == undefined
+    ? undefined
+    : convertSceneUpdate(messageEvent.message, messageEvent, op, state.origin);
 }
 
 export function registerSchemaConverters(
@@ -830,11 +1067,17 @@ export function registerTopicConverters(
   for (const spec of specs) {
     extensionContext.registerMessageConverter({
       type: "topic",
-      inputTopics: [spec.inputTopic],
+      inputTopics: [...spec.inputTopics],
       outputTopic: spec.outputTopic,
       outputSchemaName: spec.outputSchemaName,
-      create: () => (messageEvent: Immutable<MessageEvent>) =>
-        applyOp(spec.op, messageEvent.message, messageEvent),
+      // State lives inside create() so each registered converter gets its own,
+      // rather than sharing one origin across every output topic.
+      create: () => {
+        const state: ConverterState = {};
+
+        return (messageEvent: Immutable<MessageEvent>) =>
+          applyTopicOp(spec.op, messageEvent, state);
+      },
     });
   }
 }
