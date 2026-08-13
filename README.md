@@ -78,7 +78,7 @@ converters, which create new topics; see below.
 | `geometry_msgs/Quaternion`, `Pose`, `Point`, `Vector3`, … | matching ROS schema | 3D / Raw |
 | `uint8[] raw_audio` | `foxglove_msgs/msg/RawAudio` | Audio |
 | Text-ish `string` fields | `foxglove_msgs/msg/Log` | Log |
-| Casualty locations, anchored to a fiducial | `foxglove_msgs/msg/SceneUpdate` | 3D |
+| Casualty and target locations, anchored to a fiducial | `foxglove_msgs/msg/SceneUpdate` | 3D |
 
 Location and bounding-box fields merge into one output each, so all targets in a
 message draw together. A `NavSatFix` at exactly `0, 0` is treated as unlocalized
@@ -115,15 +115,18 @@ separate `/uas#/target_locations/...` topics. They are now on the parent topic
 under their own schema — select `/uas#/target_locations` in the panel. The three
 localization topics above are unchanged.
 
-## Casualty markers in the 3D panel
+## Markers in the 3D panel
 
 ```text
-/known_casualty_locations/markers    foxglove_msgs/msg/SceneUpdate
+/known_casualty_locations/markers        foxglove_msgs/msg/SceneUpdate
+/uas#/target_locations/markers           foxglove_msgs/msg/SceneUpdate
+/uas#/target_locations/markers_all       foxglove_msgs/msg/SceneUpdate
 ```
 
-One labelled sphere per casualty, so they can be seen in the **3D** panel rather
-than only on the Map. The Map view is unaffected — the same fields still feed the
-GeoJSON converter.
+Labelled markers, so locations can be seen in the **3D** panel rather than only on
+the Map — a **sphere** per known casualty, a **cube** per detected target, so the
+two layers stay apart when both are shown. The Map view is unaffected: the same
+fields still feed the GeoJSON converters.
 
 The 3D panel is Cartesian while a `NavSatFix` is geodetic, so the fixes are
 resolved into local ENU metres against an origin. That origin is per-mission and
@@ -143,6 +146,42 @@ Two consequences worth knowing:
   guessed origin would place markers wrongly without looking wrong. Seeking to a
   point before the first fiducial therefore shows an empty scene.
 
+### Target markers
+
+Each `TargetBox` carries up to three alternative localizations of the same target
+(altimeter plane, gimbal plane, rangefinder). Every one that is set gets **its own
+cube**, so the three methods can be compared where they actually disagree. Colours
+are hashed from the field path, so a cube matches the Map layer for the same
+localization — the gimbal-plane cubes are the same brown as
+`/uas#/target_locations/gimbal`. Each cube is labelled with the detection class
+and confidence. `uav_gps_location` is deliberately left out: it is the drone's own
+fix, not a detection.
+
+The two output topics differ only in how long a marker lives:
+
+| Topic | Shows |
+| --- | --- |
+| `/uas#/target_locations/markers` | the most recent message's targets |
+| `/uas#/target_locations/markers_all` | every message's targets, piled up |
+
+Each message replaces the previous entity on `markers`, and adds a new one on
+`markers_all`. The two are separate topics, so both can be on at once — though the
+useful combination is one or the other. Two things follow:
+
+- **`markers_all` only shows what has actually been played.** Foxglove hands a
+  converter the messages a panel subscribes to, so the pile-up builds as playback
+  runs and starts from empty after a seek. Play through the segment of interest to
+  fill it in.
+- **Entities are keyed by the message's `header.stamp`**, so re-playing a segment
+  replaces markers rather than doubling them. Messages sharing a stamp collapse
+  into one entity.
+
+`/uas#/tf_localization/localized` carries the same schema and is not covered; add
+it to the rule's `topics` if you want markers there too.
+
 Add a message to `SCENE_RULES` in `scripts/generate_converters.py` to give another
 schema the same treatment. The geodetic fields are found in the `.msg` files; the
-rule only names the topics, the origin topic and the frame.
+rule names the topics, the origin topic and the frame, and optionally narrows
+which fields are drawn (`paths`), renames them (`labels`), picks the shape and the
+sibling fields shown on each marker, and asks for the accumulating second topic
+(`accumulate_suffix`).

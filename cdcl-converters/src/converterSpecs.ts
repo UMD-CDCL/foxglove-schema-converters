@@ -913,6 +913,137 @@ export const TOPIC_CONVERTER_SPECS: readonly TopicConverterSpec[] =
   },
   {
     "inputTopics": [
+      "/uas1/target_locations",
+      "/launch_zone_fiducial"
+    ],
+    "outputTopic": "/uas1/target_locations/markers",
+    "outputSchemaName": "foxglove_msgs/msg/SceneUpdate",
+    "op": {
+      "kind": "scene_update",
+      "originTopic": "/launch_zone_fiducial",
+      "frameId": "d3_fiducial_offset",
+      "entityId": "uav_targets",
+      "entries": [
+        {
+          "path": [
+            "uav_target_boxes",
+            "target_location_altimeter_plane"
+          ],
+          "label": "Altimeter",
+          "color": "#fabebe",
+          "shape": "cube",
+          "propertyFields": [
+            "detection_class",
+            "detection_confidence"
+          ]
+        },
+        {
+          "path": [
+            "uav_target_boxes",
+            "target_location_gimbal_plane"
+          ],
+          "label": "Gimbal",
+          "color": "#9a6324",
+          "shape": "cube",
+          "propertyFields": [
+            "detection_class",
+            "detection_confidence"
+          ]
+        },
+        {
+          "path": [
+            "uav_target_boxes",
+            "target_location_rangefinder"
+          ],
+          "label": "Rangefinder",
+          "color": "#46f0f0",
+          "shape": "cube",
+          "propertyFields": [
+            "detection_class",
+            "detection_confidence"
+          ]
+        }
+      ],
+      "metadataFields": [
+        "seq",
+        "system_id",
+        "uav_compass_hdg",
+        "use_for_mosaic",
+        "detection_source",
+        "fiducial_marker",
+        "do_human_detection",
+        "do_assessment"
+      ]
+    }
+  },
+  {
+    "inputTopics": [
+      "/uas1/target_locations",
+      "/launch_zone_fiducial"
+    ],
+    "outputTopic": "/uas1/target_locations/markers_all",
+    "outputSchemaName": "foxglove_msgs/msg/SceneUpdate",
+    "op": {
+      "kind": "scene_update",
+      "originTopic": "/launch_zone_fiducial",
+      "frameId": "d3_fiducial_offset",
+      "entityId": "uav_targets",
+      "accumulate": true,
+      "entries": [
+        {
+          "path": [
+            "uav_target_boxes",
+            "target_location_altimeter_plane"
+          ],
+          "label": "Altimeter",
+          "color": "#fabebe",
+          "shape": "cube",
+          "propertyFields": [
+            "detection_class",
+            "detection_confidence"
+          ]
+        },
+        {
+          "path": [
+            "uav_target_boxes",
+            "target_location_gimbal_plane"
+          ],
+          "label": "Gimbal",
+          "color": "#9a6324",
+          "shape": "cube",
+          "propertyFields": [
+            "detection_class",
+            "detection_confidence"
+          ]
+        },
+        {
+          "path": [
+            "uav_target_boxes",
+            "target_location_rangefinder"
+          ],
+          "label": "Rangefinder",
+          "color": "#46f0f0",
+          "shape": "cube",
+          "propertyFields": [
+            "detection_class",
+            "detection_confidence"
+          ]
+        }
+      ],
+      "metadataFields": [
+        "seq",
+        "system_id",
+        "uav_compass_hdg",
+        "use_for_mosaic",
+        "detection_source",
+        "fiducial_marker",
+        "do_human_detection",
+        "do_assessment"
+      ]
+    }
+  },
+  {
+    "inputTopics": [
       "/uas1/target_locations"
     ],
     "outputTopic": "/uas1/target_locations/rangefinder",
@@ -1070,6 +1201,137 @@ export const TOPIC_CONVERTER_SPECS: readonly TopicConverterSpec[] =
             "detection_confidence"
           ]
         }
+      ]
+    }
+  },
+  {
+    "inputTopics": [
+      "/uas2/target_locations",
+      "/launch_zone_fiducial"
+    ],
+    "outputTopic": "/uas2/target_locations/markers",
+    "outputSchemaName": "foxglove_msgs/msg/SceneUpdate",
+    "op": {
+      "kind": "scene_update",
+      "originTopic": "/launch_zone_fiducial",
+      "frameId": "d3_fiducial_offset",
+      "entityId": "uav_targets",
+      "entries": [
+        {
+          "path": [
+            "uav_target_boxes",
+            "target_location_altimeter_plane"
+          ],
+          "label": "Altimeter",
+          "color": "#fabebe",
+          "shape": "cube",
+          "propertyFields": [
+            "detection_class",
+            "detection_confidence"
+          ]
+        },
+        {
+          "path": [
+            "uav_target_boxes",
+            "target_location_gimbal_plane"
+          ],
+          "label": "Gimbal",
+          "color": "#9a6324",
+          "shape": "cube",
+          "propertyFields": [
+            "detection_class",
+            "detection_confidence"
+          ]
+        },
+        {
+          "path": [
+            "uav_target_boxes",
+            "target_location_rangefinder"
+          ],
+          "label": "Rangefinder",
+          "color": "#46f0f0",
+          "shape": "cube",
+          "propertyFields": [
+            "detection_class",
+            "detection_confidence"
+          ]
+        }
+      ],
+      "metadataFields": [
+        "seq",
+        "system_id",
+        "uav_compass_hdg",
+        "use_for_mosaic",
+        "detection_source",
+        "fiducial_marker",
+        "do_human_detection",
+        "do_assessment"
+      ]
+    }
+  },
+  {
+    "inputTopics": [
+      "/uas2/target_locations",
+      "/launch_zone_fiducial"
+    ],
+    "outputTopic": "/uas2/target_locations/markers_all",
+    "outputSchemaName": "foxglove_msgs/msg/SceneUpdate",
+    "op": {
+      "kind": "scene_update",
+      "originTopic": "/launch_zone_fiducial",
+      "frameId": "d3_fiducial_offset",
+      "entityId": "uav_targets",
+      "accumulate": true,
+      "entries": [
+        {
+          "path": [
+            "uav_target_boxes",
+            "target_location_altimeter_plane"
+          ],
+          "label": "Altimeter",
+          "color": "#fabebe",
+          "shape": "cube",
+          "propertyFields": [
+            "detection_class",
+            "detection_confidence"
+          ]
+        },
+        {
+          "path": [
+            "uav_target_boxes",
+            "target_location_gimbal_plane"
+          ],
+          "label": "Gimbal",
+          "color": "#9a6324",
+          "shape": "cube",
+          "propertyFields": [
+            "detection_class",
+            "detection_confidence"
+          ]
+        },
+        {
+          "path": [
+            "uav_target_boxes",
+            "target_location_rangefinder"
+          ],
+          "label": "Rangefinder",
+          "color": "#46f0f0",
+          "shape": "cube",
+          "propertyFields": [
+            "detection_class",
+            "detection_confidence"
+          ]
+        }
+      ],
+      "metadataFields": [
+        "seq",
+        "system_id",
+        "uav_compass_hdg",
+        "use_for_mosaic",
+        "detection_source",
+        "fiducial_marker",
+        "do_human_detection",
+        "do_assessment"
       ]
     }
   },
@@ -1237,6 +1499,137 @@ export const TOPIC_CONVERTER_SPECS: readonly TopicConverterSpec[] =
   },
   {
     "inputTopics": [
+      "/uas3/target_locations",
+      "/launch_zone_fiducial"
+    ],
+    "outputTopic": "/uas3/target_locations/markers",
+    "outputSchemaName": "foxglove_msgs/msg/SceneUpdate",
+    "op": {
+      "kind": "scene_update",
+      "originTopic": "/launch_zone_fiducial",
+      "frameId": "d3_fiducial_offset",
+      "entityId": "uav_targets",
+      "entries": [
+        {
+          "path": [
+            "uav_target_boxes",
+            "target_location_altimeter_plane"
+          ],
+          "label": "Altimeter",
+          "color": "#fabebe",
+          "shape": "cube",
+          "propertyFields": [
+            "detection_class",
+            "detection_confidence"
+          ]
+        },
+        {
+          "path": [
+            "uav_target_boxes",
+            "target_location_gimbal_plane"
+          ],
+          "label": "Gimbal",
+          "color": "#9a6324",
+          "shape": "cube",
+          "propertyFields": [
+            "detection_class",
+            "detection_confidence"
+          ]
+        },
+        {
+          "path": [
+            "uav_target_boxes",
+            "target_location_rangefinder"
+          ],
+          "label": "Rangefinder",
+          "color": "#46f0f0",
+          "shape": "cube",
+          "propertyFields": [
+            "detection_class",
+            "detection_confidence"
+          ]
+        }
+      ],
+      "metadataFields": [
+        "seq",
+        "system_id",
+        "uav_compass_hdg",
+        "use_for_mosaic",
+        "detection_source",
+        "fiducial_marker",
+        "do_human_detection",
+        "do_assessment"
+      ]
+    }
+  },
+  {
+    "inputTopics": [
+      "/uas3/target_locations",
+      "/launch_zone_fiducial"
+    ],
+    "outputTopic": "/uas3/target_locations/markers_all",
+    "outputSchemaName": "foxglove_msgs/msg/SceneUpdate",
+    "op": {
+      "kind": "scene_update",
+      "originTopic": "/launch_zone_fiducial",
+      "frameId": "d3_fiducial_offset",
+      "entityId": "uav_targets",
+      "accumulate": true,
+      "entries": [
+        {
+          "path": [
+            "uav_target_boxes",
+            "target_location_altimeter_plane"
+          ],
+          "label": "Altimeter",
+          "color": "#fabebe",
+          "shape": "cube",
+          "propertyFields": [
+            "detection_class",
+            "detection_confidence"
+          ]
+        },
+        {
+          "path": [
+            "uav_target_boxes",
+            "target_location_gimbal_plane"
+          ],
+          "label": "Gimbal",
+          "color": "#9a6324",
+          "shape": "cube",
+          "propertyFields": [
+            "detection_class",
+            "detection_confidence"
+          ]
+        },
+        {
+          "path": [
+            "uav_target_boxes",
+            "target_location_rangefinder"
+          ],
+          "label": "Rangefinder",
+          "color": "#46f0f0",
+          "shape": "cube",
+          "propertyFields": [
+            "detection_class",
+            "detection_confidence"
+          ]
+        }
+      ],
+      "metadataFields": [
+        "seq",
+        "system_id",
+        "uav_compass_hdg",
+        "use_for_mosaic",
+        "detection_source",
+        "fiducial_marker",
+        "do_human_detection",
+        "do_assessment"
+      ]
+    }
+  },
+  {
+    "inputTopics": [
       "/uas3/target_locations"
     ],
     "outputTopic": "/uas3/target_locations/rangefinder",
@@ -1394,6 +1787,137 @@ export const TOPIC_CONVERTER_SPECS: readonly TopicConverterSpec[] =
             "detection_confidence"
           ]
         }
+      ]
+    }
+  },
+  {
+    "inputTopics": [
+      "/uas4/target_locations",
+      "/launch_zone_fiducial"
+    ],
+    "outputTopic": "/uas4/target_locations/markers",
+    "outputSchemaName": "foxglove_msgs/msg/SceneUpdate",
+    "op": {
+      "kind": "scene_update",
+      "originTopic": "/launch_zone_fiducial",
+      "frameId": "d3_fiducial_offset",
+      "entityId": "uav_targets",
+      "entries": [
+        {
+          "path": [
+            "uav_target_boxes",
+            "target_location_altimeter_plane"
+          ],
+          "label": "Altimeter",
+          "color": "#fabebe",
+          "shape": "cube",
+          "propertyFields": [
+            "detection_class",
+            "detection_confidence"
+          ]
+        },
+        {
+          "path": [
+            "uav_target_boxes",
+            "target_location_gimbal_plane"
+          ],
+          "label": "Gimbal",
+          "color": "#9a6324",
+          "shape": "cube",
+          "propertyFields": [
+            "detection_class",
+            "detection_confidence"
+          ]
+        },
+        {
+          "path": [
+            "uav_target_boxes",
+            "target_location_rangefinder"
+          ],
+          "label": "Rangefinder",
+          "color": "#46f0f0",
+          "shape": "cube",
+          "propertyFields": [
+            "detection_class",
+            "detection_confidence"
+          ]
+        }
+      ],
+      "metadataFields": [
+        "seq",
+        "system_id",
+        "uav_compass_hdg",
+        "use_for_mosaic",
+        "detection_source",
+        "fiducial_marker",
+        "do_human_detection",
+        "do_assessment"
+      ]
+    }
+  },
+  {
+    "inputTopics": [
+      "/uas4/target_locations",
+      "/launch_zone_fiducial"
+    ],
+    "outputTopic": "/uas4/target_locations/markers_all",
+    "outputSchemaName": "foxglove_msgs/msg/SceneUpdate",
+    "op": {
+      "kind": "scene_update",
+      "originTopic": "/launch_zone_fiducial",
+      "frameId": "d3_fiducial_offset",
+      "entityId": "uav_targets",
+      "accumulate": true,
+      "entries": [
+        {
+          "path": [
+            "uav_target_boxes",
+            "target_location_altimeter_plane"
+          ],
+          "label": "Altimeter",
+          "color": "#fabebe",
+          "shape": "cube",
+          "propertyFields": [
+            "detection_class",
+            "detection_confidence"
+          ]
+        },
+        {
+          "path": [
+            "uav_target_boxes",
+            "target_location_gimbal_plane"
+          ],
+          "label": "Gimbal",
+          "color": "#9a6324",
+          "shape": "cube",
+          "propertyFields": [
+            "detection_class",
+            "detection_confidence"
+          ]
+        },
+        {
+          "path": [
+            "uav_target_boxes",
+            "target_location_rangefinder"
+          ],
+          "label": "Rangefinder",
+          "color": "#46f0f0",
+          "shape": "cube",
+          "propertyFields": [
+            "detection_class",
+            "detection_confidence"
+          ]
+        }
+      ],
+      "metadataFields": [
+        "seq",
+        "system_id",
+        "uav_compass_hdg",
+        "use_for_mosaic",
+        "detection_source",
+        "fiducial_marker",
+        "do_human_detection",
+        "do_assessment"
       ]
     }
   },

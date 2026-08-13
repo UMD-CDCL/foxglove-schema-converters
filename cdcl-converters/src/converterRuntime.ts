@@ -42,13 +42,19 @@ export type LogEntry = {
   label: string;
 };
 
-/** A NavSatFix-bearing path rendered as labelled spheres in a local ENU frame. */
+/** A NavSatFix-bearing path rendered as labelled markers in a local ENU frame. */
 export type SceneEntry = {
   path: FieldPath;
   /** Human-readable name prefixed to each marker's text label. */
   label: string;
-  /** Hex color (e.g. "#e6194b") applied to the spheres. */
+  /** Hex color (e.g. "#e6194b") applied to the markers. */
   color: string;
+  /**
+   * Primitive drawn at each fix; defaults to a sphere. Shape separates layers
+   * that share a scene — targets read apart from casualties at a glance, before
+   * any colour is matched to a legend.
+   */
+  shape?: "sphere" | "cube";
   /** Sibling fields of each fix's container appended to the text label. */
   propertyFields?: readonly string[];
 };
@@ -76,6 +82,11 @@ export type ConverterOp =
       frameId: string;
       /** Entity id; a later entity with the same id replaces this one. */
       entityId: string;
+      /**
+       * Give every message its own entity id, so its markers add to the scene
+       * instead of replacing the previous message's. See sceneEntityId.
+       */
+      accumulate?: boolean;
       /** Root-level primitive fields copied into the entity's metadata. */
       metadataFields?: readonly string[];
       entries: readonly SceneEntry[];
@@ -671,7 +682,26 @@ function sceneMetadata(
 }
 
 /**
- * Renders every fix as a sphere plus a floating label, positioned relative to
+ * Entity id for one message's markers.
+ *
+ * The default id is fixed, so each message's entity replaces the last and the
+ * scene shows only the most recent message. Stamping the id with the message
+ * time instead makes every message a distinct entity, and entities live until
+ * something replaces them — so they pile up and the scene shows the whole run.
+ * The stamp, rather than a counter, keeps the id stable when the same message is
+ * converted twice.
+ */
+function sceneEntityId(
+  op: Extract<ConverterOp, { kind: "scene_update" }>,
+  timestamp: FoxgloveTime,
+): string {
+  return op.accumulate === true
+    ? `${op.entityId}_${timestamp.sec}_${timestamp.nsec}`
+    : op.entityId;
+}
+
+/**
+ * Renders every fix as a marker plus a floating label, positioned relative to
  * `origin`. Callers must supply the origin; there is no fallback, because a
  * marker drawn against a guessed origin is wrong without looking wrong.
  */
@@ -685,13 +715,14 @@ function convertSceneUpdate(
   // toRosTime's dual spelling is only needed for ROS header stamps.
   const timestamp = rootStamp(message, event);
   const spheres: AnyMessage[] = [];
+  const cubes: AnyMessage[] = [];
   const texts: AnyMessage[] = [];
 
   for (const entry of op.entries) {
     resolveFixes(message, entry.path).forEach(({ fix, container }, index) => {
       const position = llaToEnu(fix, origin);
 
-      spheres.push({
+      (entry.shape === "cube" ? cubes : spheres).push({
         pose: { position, orientation: identityOrientation() },
         size: { x: MARKER_DIAMETER, y: MARKER_DIAMETER, z: MARKER_DIAMETER },
         color: hexToRgba(entry.color, MARKER_ALPHA),
@@ -711,20 +742,27 @@ function convertSceneUpdate(
     });
   }
 
-  // Always emit the entity, even with no primitives: it carries the same id as
-  // the previous one and so replaces it, which is what clears stale markers.
+  // An accumulating converter has nothing to clear — its ids are never reused —
+  // so an empty entity would only add a permanent empty one per message. Emit an
+  // empty update instead, which still keeps the output topic in the topic list.
+  if (op.accumulate === true && spheres.length === 0 && cubes.length === 0) {
+    return { deletions: [], entities: [] };
+  }
+
+  // Otherwise always emit the entity, even with no primitives: it carries the
+  // same id as the previous one and so replaces it, clearing stale markers.
   return {
     deletions: [],
     entities: [
       {
         timestamp,
         frame_id: op.frameId,
-        id: op.entityId,
+        id: sceneEntityId(op, timestamp),
         lifetime: { sec: 0, nsec: 0 },
         frame_locked: true,
         metadata: sceneMetadata(message, op.metadataFields),
         arrows: [],
-        cubes: [],
+        cubes,
         spheres,
         cylinders: [],
         lines: [],

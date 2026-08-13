@@ -136,6 +136,13 @@ TOPIC_RULES = [
 # hand a 3D view to every message that carries one, and each needs an origin
 # topic chosen for it. Fields keep their schema converters too, so the Map view
 # of the same message survives.
+#
+# Required keys: schema, topics, origin_topic, frame_id, entity_id, suffix.
+# Optional: paths (restrict which geodetic fields are drawn, by dotted prefix),
+# labels (per-path marker name), label (prefix for paths `labels` does not name),
+# shape ("sphere" or "cube"), properties (sibling fields shown on the marker,
+# instead of every primitive sibling), accumulate_suffix (a second output topic
+# whose markers pile up across the run rather than replacing one another).
 
 SCENE_RULES = [
     {
@@ -151,6 +158,34 @@ SCENE_RULES = [
         "entity_id": "known_casualties",
         "suffix": "markers",
         "label": "Casualty",
+    },
+    {
+        # Each TargetBox carries up to three alternative localizations of the same
+        # target; every one that is set gets its own marker, so the three methods
+        # can be compared in place. The same three feed the Map layers, and colours
+        # are hashed from the field path, so a marker matches its Map layer.
+        "schema": "cdcl_umd_msgs/msg/TargetBoxArray",
+        "topics": [f"/uas{n}/target_locations" for n in (1, 2, 3, 4)],
+        "origin_topic": "/launch_zone_fiducial",
+        "frame_id": "d3_fiducial_offset",
+        "entity_id": "uav_targets",
+        # `markers` holds the latest message's targets; `markers_all` keeps every
+        # message's, so a run's detections build up into a single picture.
+        "suffix": "markers",
+        "accumulate_suffix": "markers_all",
+        # Targets only: uav_gps_location is the drone's own fix, not a detection.
+        "paths": ["uav_target_boxes"],
+        "labels": {
+            "uav_target_boxes.target_location_altimeter_plane": "Altimeter",
+            "uav_target_boxes.target_location_gimbal_plane": "Gimbal",
+            "uav_target_boxes.target_location_rangefinder": "Rangefinder",
+        },
+        # Cubes so targets stay distinguishable from the casualty spheres when
+        # both layers are shown at once.
+        "shape": "cube",
+        # Every primitive sibling would be carried by default; these are the two
+        # worth reading off a marker floating over a scene.
+        "properties": ["detection_class", "detection_confidence"],
     },
 ]
 
@@ -351,15 +386,26 @@ def geojson_entry(item: Convertible, label: str) -> dict:
     return entry
 
 
-def scene_entry(item: Convertible, label: str) -> dict:
+def scene_entry(item: Convertible, label: str, rule: dict) -> dict:
     entry = {
         "path": list(item.path),
         "label": label,
         "color": item.color,
     }
-    properties = property_fields(item)
+
+    shape = rule.get("shape")
+    if shape:
+        entry["shape"] = shape
+
+    chosen = rule.get("properties")
+    properties = (
+        [name for name in chosen if name in item.siblings]
+        if chosen is not None
+        else property_fields(item)
+    )
     if properties:
         entry["propertyFields"] = properties
+
     return entry
 
 
@@ -407,6 +453,13 @@ def labels_for(items: list[Convertible]) -> dict[str, str]:
     }
 
 
+def under_paths(item: Convertible, paths: list[str] | None) -> bool:
+    """Whether the field sits at, or under, one of `paths`. None matches everything."""
+    if paths is None:
+        return True
+    return any(item.dotted == p or item.dotted.startswith(f"{p}.") for p in paths)
+
+
 def claimed_by_rule(rule: dict, items: list[Convertible]) -> list[Convertible]:
     """Fields under the rule's prefixes that genuinely need their own topic.
 
@@ -415,11 +468,7 @@ def claimed_by_rule(rule: dict, items: list[Convertible]) -> list[Convertible]:
     one schema converter. A lone field (a bounding box, say) has no rival and is
     left on the schema converter, keeping topic converters to a minimum.
     """
-    under = [
-        item
-        for item in items
-        if any(item.dotted == p or item.dotted.startswith(f"{p}.") for p in rule["split_paths"])
-    ]
+    under = [item for item in items if under_paths(item, rule["split_paths"])]
 
     by_target: dict[str, list[Convertible]] = {}
     for item in under:
@@ -450,47 +499,64 @@ GEO_FIX_TYPES = ("sensor_msgs/NavSatFix", "gps_msgs/GPSFix")
 
 
 def scene_specs_for(rule: dict, found: list[Convertible], index: dict) -> list[dict]:
-    """One SceneUpdate topic converter per topic the rule names.
+    """One SceneUpdate topic converter per topic the rule names, per mode.
 
-    Every geodetic field on the message goes into a single entity, so the whole
+    Every geodetic field the rule selects goes into a single entity, so the whole
     message toggles as one layer in the 3D panel. The fields are also left on
     their schema converters, keeping the Map view intact.
     """
-    items = [item for item in found if item.base_type in GEO_FIX_TYPES]
+    items = [
+        item
+        for item in found
+        if item.base_type in GEO_FIX_TYPES and under_paths(item, rule.get("paths"))
+    ]
     if not items:
         return []
 
     labels = labels_for(items)
+    overrides = rule.get("labels", {})
     base = rule.get("label")
 
     def label_for(item: Convertible) -> str:
+        if item.dotted in overrides:
+            return overrides[item.dotted]
         if base is None:
             return labels[item.dotted]
         return base if len(items) == 1 else f"{base} {labels[item.dotted]}"
-
-    op = {
-        "kind": "scene_update",
-        "originTopic": rule["origin_topic"],
-        "frameId": rule["frame_id"],
-        "entityId": rule["entity_id"],
-        "entries": [scene_entry(item, label_for(item)) for item in items],
-    }
 
     root = f"{rule['schema'].split('/')[0]}/{rule['schema'].split('/')[-1]}"
     metadata = [
         f.name for f in index.get(root, ()) if f.base_type in ROS_PRIMITIVES and not f.is_array
     ]
-    if metadata:
-        op["metadataFields"] = metadata
+
+    def op_for(accumulate: bool) -> dict:
+        op = {
+            "kind": "scene_update",
+            "originTopic": rule["origin_topic"],
+            "frameId": rule["frame_id"],
+            "entityId": rule["entity_id"],
+        }
+        if accumulate:
+            op["accumulate"] = True
+        op["entries"] = [scene_entry(item, label_for(item), rule) for item in items]
+        if metadata:
+            op["metadataFields"] = metadata
+        return op
+
+    # The latest-only output first; a rule opts into the second, accumulating one.
+    modes = [(rule["suffix"], False)]
+    if rule.get("accumulate_suffix"):
+        modes.append((rule["accumulate_suffix"], True))
 
     return [
         {
             "inputTopics": [topic, rule["origin_topic"]],
-            "outputTopic": f"{topic}/{rule['suffix']}",
+            "outputTopic": f"{topic}/{suffix}",
             "outputSchemaName": "foxglove_msgs/msg/SceneUpdate",
-            "op": op,
+            "op": op_for(accumulate),
         }
         for topic in rule["topics"]
+        for suffix, accumulate in modes
     ]
 
 
