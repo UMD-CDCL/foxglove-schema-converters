@@ -837,7 +837,7 @@ export const TOPIC_CONVERTER_SPECS: readonly TopicConverterSpec[] =
     "op": {
       "kind": "scene_update",
       "originTopic": "/launch_zone_fiducial",
-      "frameId": "d3_fiducial_offset",
+      "frameId": "fiducial",
       "entityId": "known_casualties",
       "entries": [
         {
@@ -921,7 +921,7 @@ export const TOPIC_CONVERTER_SPECS: readonly TopicConverterSpec[] =
     "op": {
       "kind": "scene_update",
       "originTopic": "/launch_zone_fiducial",
-      "frameId": "d3_fiducial_offset",
+      "frameId": "fiducial",
       "entityId": "uav_targets",
       "entries": [
         {
@@ -986,7 +986,7 @@ export const TOPIC_CONVERTER_SPECS: readonly TopicConverterSpec[] =
     "op": {
       "kind": "scene_update",
       "originTopic": "/launch_zone_fiducial",
-      "frameId": "d3_fiducial_offset",
+      "frameId": "fiducial",
       "entityId": "uav_targets",
       "accumulate": true,
       "entries": [
@@ -1214,7 +1214,7 @@ export const TOPIC_CONVERTER_SPECS: readonly TopicConverterSpec[] =
     "op": {
       "kind": "scene_update",
       "originTopic": "/launch_zone_fiducial",
-      "frameId": "d3_fiducial_offset",
+      "frameId": "fiducial",
       "entityId": "uav_targets",
       "entries": [
         {
@@ -1279,7 +1279,7 @@ export const TOPIC_CONVERTER_SPECS: readonly TopicConverterSpec[] =
     "op": {
       "kind": "scene_update",
       "originTopic": "/launch_zone_fiducial",
-      "frameId": "d3_fiducial_offset",
+      "frameId": "fiducial",
       "entityId": "uav_targets",
       "accumulate": true,
       "entries": [
@@ -1507,7 +1507,7 @@ export const TOPIC_CONVERTER_SPECS: readonly TopicConverterSpec[] =
     "op": {
       "kind": "scene_update",
       "originTopic": "/launch_zone_fiducial",
-      "frameId": "d3_fiducial_offset",
+      "frameId": "fiducial",
       "entityId": "uav_targets",
       "entries": [
         {
@@ -1572,7 +1572,7 @@ export const TOPIC_CONVERTER_SPECS: readonly TopicConverterSpec[] =
     "op": {
       "kind": "scene_update",
       "originTopic": "/launch_zone_fiducial",
-      "frameId": "d3_fiducial_offset",
+      "frameId": "fiducial",
       "entityId": "uav_targets",
       "accumulate": true,
       "entries": [
@@ -1800,7 +1800,7 @@ export const TOPIC_CONVERTER_SPECS: readonly TopicConverterSpec[] =
     "op": {
       "kind": "scene_update",
       "originTopic": "/launch_zone_fiducial",
-      "frameId": "d3_fiducial_offset",
+      "frameId": "fiducial",
       "entityId": "uav_targets",
       "entries": [
         {
@@ -1865,7 +1865,7 @@ export const TOPIC_CONVERTER_SPECS: readonly TopicConverterSpec[] =
     "op": {
       "kind": "scene_update",
       "originTopic": "/launch_zone_fiducial",
-      "frameId": "d3_fiducial_offset",
+      "frameId": "fiducial",
       "entityId": "uav_targets",
       "accumulate": true,
       "entries": [

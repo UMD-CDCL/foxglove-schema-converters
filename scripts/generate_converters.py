@@ -137,6 +137,10 @@ TOPIC_RULES = [
 # topic chosen for it. Fields keep their schema converters too, so the Map view
 # of the same message survives.
 #
+# Mission-wide origin frame. Every vehicle's tf tree includes it, so one marker
+# layer registers against all of them; per-vehicle fiducial frames are gone.
+FIDUCIAL_FRAME = "fiducial"
+
 # Required keys: schema, topics, origin_topic, frame_id, entity_id, suffix.
 # Optional: paths (restrict which geodetic fields are drawn, by dotted prefix),
 # labels (per-path marker name), label (prefix for paths `labels` does not name),
@@ -150,11 +154,10 @@ SCENE_RULES = [
         "topics": ["/known_casualty_locations"],
         "origin_topic": "/launch_zone_fiducial",
         # Markers are placed in ENU metres from the origin fix, so frame_id has to
-        # name a frame already in the drones' tf tree or they float unconnected.
-        # d3_fiducial_offset is currently an identity child of uas3_home_position,
-        # so this holds only while the origin fix coincides with UAS3's home
-        # position. Retarget to the shared "fiducial" frame once that exists.
-        "frame_id": "d3_fiducial_offset",
+        # name a frame already in the vehicles' tf tree or they float unconnected.
+        # `fiducial` is the mission-wide origin every vehicle's tree now includes,
+        # which is what lets one marker layer line up with all of them at once.
+        "frame_id": FIDUCIAL_FRAME,
         "entity_id": "known_casualties",
         "suffix": "markers",
         "label": "Casualty",
@@ -167,7 +170,7 @@ SCENE_RULES = [
         "schema": "cdcl_umd_msgs/msg/TargetBoxArray",
         "topics": [f"/uas{n}/target_locations" for n in (1, 2, 3, 4)],
         "origin_topic": "/launch_zone_fiducial",
-        "frame_id": "d3_fiducial_offset",
+        "frame_id": FIDUCIAL_FRAME,
         "entity_id": "uav_targets",
         # `markers` holds the latest message's targets; `markers_all` keeps every
         # message's, so a run's detections build up into a single picture.

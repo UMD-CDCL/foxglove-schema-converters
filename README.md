@@ -135,12 +135,10 @@ topic converter: a schema converter only ever sees one message.
 
 Two consequences worth knowing:
 
-- **The markers are emitted into `d3_fiducial_offset`**, so they share the drones'
-  TF tree. That frame is presently an identity child of `uas3_home_position`, which
-  means the placement is only correct while the origin fix coincides with UAS3's
-  home position — a stopgap until a shared `fiducial` frame exists. Change
-  `frame_id` in the rule to retarget. If the panel is empty, a display frame with
-  no path to this one is the usual cause.
+- **The markers are emitted into `fiducial`**, the mission-wide origin frame every
+  vehicle's TF tree includes, so one marker layer registers against all of them.
+  Set `FIDUCIAL_FRAME` at the top of `SCENE_RULES` to retarget. If the panel is
+  empty, a display frame with no path to `fiducial` is the usual cause.
 - **Nothing is drawn until the first fiducial arrives.** The first valid fix is
   kept for the session and later ones ignored, so the frame never drifts; a
   guessed origin would place markers wrongly without looking wrong. Seeking to a
