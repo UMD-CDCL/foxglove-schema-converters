@@ -35,7 +35,7 @@ SNAP_EXT_ROOT = SNAP_HOME / ".foxglove-studio" / "extensions"
 
 # Extension directories this build replaces, cleared on install.
 SUPERSEDED = ("umd-cdcl.cdcl-converters-*", "umd-cdcl.cdcl-schema-converters-*",
-              "umd-cdcl.cdcl-topic-converters-*")
+              "umd-cdcl.cdcl-topic-converters-*", "umd-cdcl.cdcl-tracking-schema-converter-*")
 
 # The message package is mounted read-only at /pkg, which the generator finds by
 # default.
@@ -43,6 +43,7 @@ BUILD_STEPS = """
 npm install --no-audit --no-fund --silent
 python3 scripts/generate_converters.py /pkg
 npm --workspace cdcl-converters run package
+npm --workspace cdcl-tracking-schema-converter run package
 """
 
 
@@ -55,7 +56,7 @@ def run(command: list[str], **kwargs) -> subprocess.CompletedProcess:
         sys.exit(f"ERROR: {command[0]} failed with exit code {error.returncode}")
 
 
-def build(msg_pkg: Path) -> Path:
+def build(msg_pkg: Path) -> list[Path]:
     run(["docker", "build", "-q", "-t", IMAGE, str(REPO_ROOT)], stdout=subprocess.DEVNULL)
 
     # Running as the host user keeps generated files owned by you.
@@ -70,16 +71,15 @@ def build(msg_pkg: Path) -> Path:
         "sh", "-euc", BUILD_STEPS,
     ])
 
-    packages = sorted(
-        (REPO_ROOT / "cdcl-converters").glob("*.foxe"),
-        key=lambda path: path.stat().st_mtime,
-        reverse=True,
-    )
+    packages = []
+    for workspace in ("cdcl-converters", "cdcl-tracking-schema-converter"):
+        packages.extend((REPO_ROOT / workspace).glob("*.foxe"))
+    packages.sort(key=lambda path: path.stat().st_mtime, reverse=True)
 
     if not packages:
         sys.exit("ERROR: no .foxe was produced")
 
-    return packages[0]
+    return packages
 
 
 def extension_roots(override: str | None) -> list[Path]:
@@ -96,10 +96,13 @@ def extension_roots(override: str | None) -> list[Path]:
     return roots
 
 
-def install(roots: list[Path]) -> None:
-    manifest = json.loads((REPO_ROOT / "cdcl-converters" / "package.json").read_text())
-    ext_id = f"{manifest['publisher']}.{manifest['name']}-{manifest['version']}"
-    source = REPO_ROOT / "cdcl-converters"
+def install(roots: list[Path], packages: list[Path]) -> None:
+    extensions = []
+    for package in packages:
+        source = package.parent
+        manifest = json.loads((source / "package.json").read_text())
+        ext_id = f"{manifest['publisher']}.{manifest['name']}-{manifest['version']}"
+        extensions.append((source, ext_id))
 
     for root in roots:
         root.mkdir(parents=True, exist_ok=True)
@@ -108,13 +111,15 @@ def install(roots: list[Path]) -> None:
             for stale in root.glob(pattern):
                 shutil.rmtree(stale, ignore_errors=True)
 
-        destination = root / ext_id
-        shutil.copytree(source / "dist", destination / "dist")
+        for source, ext_id in extensions:
+            destination = root / ext_id
+            shutil.copytree(source / "dist", destination / "dist")
 
-        for name in ("package.json", "README.md", "CHANGELOG.md"):
-            shutil.copy2(source / name, destination / name)
+            for name in ("package.json", "README.md", "CHANGELOG.md"):
+                if (source / name).exists():
+                    shutil.copy2(source / name, destination / name)
 
-        print(f"Installed: {destination}")
+            print(f"Installed: {destination}")
 
     print()
     print("Fully quit and reopen Foxglove Studio to load the extension.")
@@ -152,11 +157,12 @@ def main() -> None:
 
     print(f"Messages:  {msg_pkg}")
 
-    package = build(msg_pkg)
-    print(f"Packaged:  {package}")
+    packages = build(msg_pkg)
+    for package in packages:
+        print(f"Packaged:  {package}")
 
     if not args.no_install:
-        install(extension_roots(args.ext_dir))
+        install(extension_roots(args.ext_dir), packages)
 
 
 if __name__ == "__main__":

@@ -2,6 +2,7 @@
   "name": "foxglove-schema-converters-workspace",
   "private": true,
   "workspaces": [
-    "cdcl-converters"
+    "cdcl-converters",
+    "cdcl-tracking-schema-converter"
   ]
 }
