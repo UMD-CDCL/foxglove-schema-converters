@@ -42,6 +42,7 @@ SUPERSEDED = ("umd-cdcl.cdcl-converters-*", "umd-cdcl.cdcl-schema-converters-*",
 BUILD_STEPS = """
 npm install --no-audit --no-fund --silent
 python3 scripts/generate_converters.py /pkg
+rm -f cdcl-converters/*.foxe cdcl-tracking-schema-converter/*.foxe
 npm --workspace cdcl-converters run package
 npm --workspace cdcl-tracking-schema-converter run package
 """
