@@ -147,6 +147,16 @@ export const SCHEMA_CONVERTER_SPECS: readonly SchemaConverterSpec[] =
     }
   },
   {
+    "fromSchemaName": "cdcl_umd_msgs/msg/CasualtyOrientation",
+    "toSchemaName": "sensor_msgs/msg/NavSatFix",
+    "op": {
+      "kind": "navsatfix",
+      "path": [
+        "position"
+      ]
+    }
+  },
+  {
     "fromSchemaName": "cdcl_umd_msgs/msg/CasualtyReport",
     "toSchemaName": "foxglove_msgs/msg/GeoJSON",
     "op": {
@@ -208,6 +218,86 @@ export const SCHEMA_CONVERTER_SPECS: readonly SchemaConverterSpec[] =
       "kind": "passthrough",
       "path": [
         "uav_local_pose"
+      ]
+    }
+  },
+  {
+    "fromSchemaName": "cdcl_umd_msgs/msg/EnrichedTargetBox",
+    "toSchemaName": "sensor_msgs/msg/NavSatFix",
+    "op": {
+      "kind": "navsatfix",
+      "path": [
+        "position"
+      ]
+    }
+  },
+  {
+    "fromSchemaName": "cdcl_umd_msgs/msg/EnrichedTargetBoxArray",
+    "toSchemaName": "foxglove_msgs/msg/GeoJSON",
+    "op": {
+      "kind": "geojson",
+      "entries": [
+        {
+          "path": [
+            "observations",
+            "position"
+          ],
+          "label": "Position",
+          "geometry": "point",
+          "color": "#3cb44b",
+          "propertyFields": [
+            "platform_id",
+            "source_seq",
+            "bbox_index",
+            "loc_method",
+            "altitude_m",
+            "detection_confidence",
+            "bbox_center_px_x",
+            "bbox_center_px_y",
+            "bbox_size_px_x",
+            "bbox_size_px_y",
+            "ref_px_x",
+            "ref_px_y"
+          ]
+        },
+        {
+          "path": [
+            "fov_polygon"
+          ],
+          "label": "Fov polygon",
+          "geometry": "polygon",
+          "color": "#4363d8",
+          "propertyFields": [
+            "fov_area_m2",
+            "measurement_type",
+            "sigma_cam_h",
+            "sigma_cam_z",
+            "sigma_yaw_rad",
+            "sigma_pitch_rad",
+            "image_width",
+            "image_height"
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "fromSchemaName": "cdcl_umd_msgs/msg/EnrichedTargetBoxArray",
+    "toSchemaName": "geometry_msgs/msg/Quaternion",
+    "op": {
+      "kind": "passthrough",
+      "path": [
+        "camera_orientation"
+      ]
+    }
+  },
+  {
+    "fromSchemaName": "cdcl_umd_msgs/msg/EnrichedTargetBoxArray",
+    "toSchemaName": "sensor_msgs/msg/NavSatFix",
+    "op": {
+      "kind": "navsatfix",
+      "path": [
+        "camera_position"
       ]
     }
   },
@@ -484,6 +574,20 @@ export const SCHEMA_CONVERTER_SPECS: readonly SchemaConverterSpec[] =
           "label": "Target location rangefinder",
           "geometry": "point",
           "color": "#000075",
+          "propertyFields": [
+            "data_source_id",
+            "use_for_assessment",
+            "detection_class",
+            "detection_confidence"
+          ]
+        },
+        {
+          "path": [
+            "target_location_topo"
+          ],
+          "label": "Target location topo",
+          "geometry": "point",
+          "color": "#fabebe",
           "propertyFields": [
             "data_source_id",
             "use_for_assessment",
@@ -776,6 +880,54 @@ export const SCHEMA_CONVERTER_SPECS: readonly SchemaConverterSpec[] =
     }
   },
   {
+    "fromSchemaName": "cdcl_umd_msgs/msg/TrackArray",
+    "toSchemaName": "foxglove_msgs/msg/GeoJSON",
+    "op": {
+      "kind": "geojson",
+      "entries": [
+        {
+          "path": [
+            "tracks",
+            "position"
+          ],
+          "label": "Position",
+          "geometry": "point",
+          "color": "#bcf60c",
+          "propertyFields": [
+            "track_id",
+            "status",
+            "imm_mu_static",
+            "imm_mu_cv",
+            "source_platform",
+            "tentative_hits",
+            "last_det_seq",
+            "last_det_bbox_index"
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "fromSchemaName": "cdcl_umd_msgs/msg/TrackState",
+    "toSchemaName": "geometry_msgs/msg/Vector3",
+    "op": {
+      "kind": "passthrough",
+      "path": [
+        "velocity"
+      ]
+    }
+  },
+  {
+    "fromSchemaName": "cdcl_umd_msgs/msg/TrackState",
+    "toSchemaName": "sensor_msgs/msg/NavSatFix",
+    "op": {
+      "kind": "navsatfix",
+      "path": [
+        "position"
+      ]
+    }
+  },
+  {
     "fromSchemaName": "cdcl_umd_msgs/msg/Waypoint",
     "toSchemaName": "geometry_msgs/msg/Quaternion",
     "op": {
@@ -903,6 +1055,31 @@ export const TOPIC_CONVERTER_SPECS: readonly TopicConverterSpec[] =
     }
   },
   {
+    "inputTopic": "/uas1/target_locations",
+    "outputTopic": "/uas1/target_locations/topo",
+    "outputSchemaName": "foxglove_msgs/msg/GeoJSON",
+    "op": {
+      "kind": "geojson",
+      "entries": [
+        {
+          "path": [
+            "uav_target_boxes",
+            "target_location_topo"
+          ],
+          "label": "Topo",
+          "geometry": "point",
+          "color": "#fabebe",
+          "propertyFields": [
+            "data_source_id",
+            "use_for_assessment",
+            "detection_class",
+            "detection_confidence"
+          ]
+        }
+      ]
+    }
+  },
+  {
     "inputTopic": "/uas1/tf_localization/localized",
     "outputTopic": "/uas1/tf_localization/localized/altimeter",
     "outputSchemaName": "foxglove_msgs/msg/GeoJSON",
@@ -967,6 +1144,31 @@ export const TOPIC_CONVERTER_SPECS: readonly TopicConverterSpec[] =
           "label": "Rangefinder",
           "geometry": "point",
           "color": "#46f0f0",
+          "propertyFields": [
+            "data_source_id",
+            "use_for_assessment",
+            "detection_class",
+            "detection_confidence"
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "inputTopic": "/uas1/tf_localization/localized",
+    "outputTopic": "/uas1/tf_localization/localized/topo",
+    "outputSchemaName": "foxglove_msgs/msg/GeoJSON",
+    "op": {
+      "kind": "geojson",
+      "entries": [
+        {
+          "path": [
+            "uav_target_boxes",
+            "target_location_topo"
+          ],
+          "label": "Topo",
+          "geometry": "point",
+          "color": "#fabebe",
           "propertyFields": [
             "data_source_id",
             "use_for_assessment",
@@ -1053,6 +1255,31 @@ export const TOPIC_CONVERTER_SPECS: readonly TopicConverterSpec[] =
     }
   },
   {
+    "inputTopic": "/uas2/target_locations",
+    "outputTopic": "/uas2/target_locations/topo",
+    "outputSchemaName": "foxglove_msgs/msg/GeoJSON",
+    "op": {
+      "kind": "geojson",
+      "entries": [
+        {
+          "path": [
+            "uav_target_boxes",
+            "target_location_topo"
+          ],
+          "label": "Topo",
+          "geometry": "point",
+          "color": "#fabebe",
+          "propertyFields": [
+            "data_source_id",
+            "use_for_assessment",
+            "detection_class",
+            "detection_confidence"
+          ]
+        }
+      ]
+    }
+  },
+  {
     "inputTopic": "/uas2/tf_localization/localized",
     "outputTopic": "/uas2/tf_localization/localized/altimeter",
     "outputSchemaName": "foxglove_msgs/msg/GeoJSON",
@@ -1117,6 +1344,31 @@ export const TOPIC_CONVERTER_SPECS: readonly TopicConverterSpec[] =
           "label": "Rangefinder",
           "geometry": "point",
           "color": "#46f0f0",
+          "propertyFields": [
+            "data_source_id",
+            "use_for_assessment",
+            "detection_class",
+            "detection_confidence"
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "inputTopic": "/uas2/tf_localization/localized",
+    "outputTopic": "/uas2/tf_localization/localized/topo",
+    "outputSchemaName": "foxglove_msgs/msg/GeoJSON",
+    "op": {
+      "kind": "geojson",
+      "entries": [
+        {
+          "path": [
+            "uav_target_boxes",
+            "target_location_topo"
+          ],
+          "label": "Topo",
+          "geometry": "point",
+          "color": "#fabebe",
           "propertyFields": [
             "data_source_id",
             "use_for_assessment",
@@ -1203,6 +1455,31 @@ export const TOPIC_CONVERTER_SPECS: readonly TopicConverterSpec[] =
     }
   },
   {
+    "inputTopic": "/uas3/target_locations",
+    "outputTopic": "/uas3/target_locations/topo",
+    "outputSchemaName": "foxglove_msgs/msg/GeoJSON",
+    "op": {
+      "kind": "geojson",
+      "entries": [
+        {
+          "path": [
+            "uav_target_boxes",
+            "target_location_topo"
+          ],
+          "label": "Topo",
+          "geometry": "point",
+          "color": "#fabebe",
+          "propertyFields": [
+            "data_source_id",
+            "use_for_assessment",
+            "detection_class",
+            "detection_confidence"
+          ]
+        }
+      ]
+    }
+  },
+  {
     "inputTopic": "/uas3/tf_localization/localized",
     "outputTopic": "/uas3/tf_localization/localized/altimeter",
     "outputSchemaName": "foxglove_msgs/msg/GeoJSON",
@@ -1267,6 +1544,31 @@ export const TOPIC_CONVERTER_SPECS: readonly TopicConverterSpec[] =
           "label": "Rangefinder",
           "geometry": "point",
           "color": "#46f0f0",
+          "propertyFields": [
+            "data_source_id",
+            "use_for_assessment",
+            "detection_class",
+            "detection_confidence"
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "inputTopic": "/uas3/tf_localization/localized",
+    "outputTopic": "/uas3/tf_localization/localized/topo",
+    "outputSchemaName": "foxglove_msgs/msg/GeoJSON",
+    "op": {
+      "kind": "geojson",
+      "entries": [
+        {
+          "path": [
+            "uav_target_boxes",
+            "target_location_topo"
+          ],
+          "label": "Topo",
+          "geometry": "point",
+          "color": "#fabebe",
           "propertyFields": [
             "data_source_id",
             "use_for_assessment",
@@ -1353,6 +1655,31 @@ export const TOPIC_CONVERTER_SPECS: readonly TopicConverterSpec[] =
     }
   },
   {
+    "inputTopic": "/uas4/target_locations",
+    "outputTopic": "/uas4/target_locations/topo",
+    "outputSchemaName": "foxglove_msgs/msg/GeoJSON",
+    "op": {
+      "kind": "geojson",
+      "entries": [
+        {
+          "path": [
+            "uav_target_boxes",
+            "target_location_topo"
+          ],
+          "label": "Topo",
+          "geometry": "point",
+          "color": "#fabebe",
+          "propertyFields": [
+            "data_source_id",
+            "use_for_assessment",
+            "detection_class",
+            "detection_confidence"
+          ]
+        }
+      ]
+    }
+  },
+  {
     "inputTopic": "/uas4/tf_localization/localized",
     "outputTopic": "/uas4/tf_localization/localized/altimeter",
     "outputSchemaName": "foxglove_msgs/msg/GeoJSON",
@@ -1417,6 +1744,31 @@ export const TOPIC_CONVERTER_SPECS: readonly TopicConverterSpec[] =
           "label": "Rangefinder",
           "geometry": "point",
           "color": "#46f0f0",
+          "propertyFields": [
+            "data_source_id",
+            "use_for_assessment",
+            "detection_class",
+            "detection_confidence"
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "inputTopic": "/uas4/tf_localization/localized",
+    "outputTopic": "/uas4/tf_localization/localized/topo",
+    "outputSchemaName": "foxglove_msgs/msg/GeoJSON",
+    "op": {
+      "kind": "geojson",
+      "entries": [
+        {
+          "path": [
+            "uav_target_boxes",
+            "target_location_topo"
+          ],
+          "label": "Topo",
+          "geometry": "point",
+          "color": "#fabebe",
           "propertyFields": [
             "data_source_id",
             "use_for_assessment",
