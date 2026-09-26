@@ -380,6 +380,23 @@ export const SCHEMA_CONVERTER_SPECS: readonly SchemaConverterSpec[] =
     }
   },
   {
+    "fromSchemaName": "cdcl_umd_msgs/msg/GeoPolygon",
+    "toSchemaName": "foxglove_msgs/msg/GeoJSON",
+    "op": {
+      "kind": "geojson",
+      "entries": [
+        {
+          "path": [
+            "points"
+          ],
+          "label": "Points",
+          "geometry": "polygon",
+          "color": "#e6beff"
+        }
+      ]
+    }
+  },
+  {
     "fromSchemaName": "cdcl_umd_msgs/msg/Geofence",
     "toSchemaName": "foxglove_msgs/msg/GeoJSON",
     "op": {
@@ -395,11 +412,12 @@ export const SCHEMA_CONVERTER_SPECS: readonly SchemaConverterSpec[] =
         },
         {
           "path": [
-            "exclusion_zone_coordinates"
+            "exclusion_zones",
+            "points"
           ],
-          "label": "Exclusion zone coordinates",
+          "label": "Points",
           "geometry": "polygon",
-          "color": "#bcf60c"
+          "color": "#fabebe"
         },
         {
           "path": [
@@ -534,6 +552,33 @@ export const SCHEMA_CONVERTER_SPECS: readonly SchemaConverterSpec[] =
     }
   },
   {
+    "fromSchemaName": "cdcl_umd_msgs/msg/ObservationList",
+    "toSchemaName": "foxglove_msgs/msg/GeoJSON",
+    "op": {
+      "kind": "geojson",
+      "entries": [
+        {
+          "path": [
+            "observations",
+            "position"
+          ],
+          "label": "Position",
+          "geometry": "point",
+          "color": "#f58231",
+          "propertyFields": [
+            "data_source_id",
+            "seq",
+            "platform_name",
+            "observation_module",
+            "confidence",
+            "detection_box_index",
+            "fov_area"
+          ]
+        }
+      ]
+    }
+  },
+  {
     "fromSchemaName": "cdcl_umd_msgs/msg/ObservationWithLevel",
     "toSchemaName": "sensor_msgs/msg/NavSatFix",
     "op": {
@@ -584,7 +629,10 @@ export const SCHEMA_CONVERTER_SPECS: readonly SchemaConverterSpec[] =
             "darpa_server_ip",
             "active_mobile_assets",
             "ground_truth_csv_path",
-            "inference_engine_path"
+            "inference_engine_path",
+            "num_evacuation_seats",
+            "expected_n_casualties",
+            "false_alarm_rate_per_m2"
           ]
         },
         {
@@ -601,7 +649,10 @@ export const SCHEMA_CONVERTER_SPECS: readonly SchemaConverterSpec[] =
             "darpa_server_ip",
             "active_mobile_assets",
             "ground_truth_csv_path",
-            "inference_engine_path"
+            "inference_engine_path",
+            "num_evacuation_seats",
+            "expected_n_casualties",
+            "false_alarm_rate_per_m2"
           ]
         },
         {
@@ -618,7 +669,10 @@ export const SCHEMA_CONVERTER_SPECS: readonly SchemaConverterSpec[] =
             "darpa_server_ip",
             "active_mobile_assets",
             "ground_truth_csv_path",
-            "inference_engine_path"
+            "inference_engine_path",
+            "num_evacuation_seats",
+            "expected_n_casualties",
+            "false_alarm_rate_per_m2"
           ]
         },
         {
@@ -667,11 +721,12 @@ export const SCHEMA_CONVERTER_SPECS: readonly SchemaConverterSpec[] =
         {
           "path": [
             "exclusion_zones",
-            "exclusion_zone_coordinates"
+            "exclusion_zones",
+            "points"
           ],
-          "label": "Exclusion zone coordinates",
+          "label": "Points",
           "geometry": "polygon",
-          "color": "#a9a9a9"
+          "color": "#9a6324"
         },
         {
           "path": [
