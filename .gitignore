@@ -4,3 +4,4 @@ __pycache__/
 # Build output
 cdcl-converters/dist/
 cdcl-converters/*.foxe
+cdcl-schema-converters/

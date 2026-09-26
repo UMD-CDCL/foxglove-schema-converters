@@ -1,0 +1,17 @@
+{
+  "extends": "create-foxglove-extension/tsconfig/tsconfig.json",
+  "include": ["./src/**/*", "../cdcl-converters/src/converterRuntime.ts"],
+  "compilerOptions": {
+    "rootDir": "..",
+    "outDir": "./dist",
+    "lib": ["dom"],
+    "composite": false,
+    "declaration": false,
+    "noImplicitAny": true,
+    "noImplicitReturns": true,
+    "noUncheckedIndexedAccess": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "forceConsistentCasingInFileNames": true
+  }
+}
