@@ -3,7 +3,7 @@
   "displayName": "CDCL Converters",
   "description": "Foxglove schema and topic converters for CDCL custom ROS 2 messages",
   "publisher": "umd-cdcl",
-  "version": "1.0.0",
+  "version": "1.0.2",
   "license": "UNLICENSED",
   "main": "./dist/extension.js",
   "keywords": [

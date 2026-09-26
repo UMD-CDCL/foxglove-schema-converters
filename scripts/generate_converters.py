@@ -27,11 +27,22 @@ ROS_PRIMITIVES = {
 }
 
 POLYGON_HINTS = ("polygon", "fence", "domain", "zone", "boundary", "bounds", "perimeter")
+# Polygons matching these are drawn as an unfilled outline instead. A field of
+# view frames what is under it, so a fill would tint — and take the clicks of —
+# the very detections it is there to put in context.
+OUTLINE_HINTS = ("fov", "field_of_view")
 TEXT_HINTS = ("transcript", "caption", "text", "description", "summary", "message")
 AUDIO_FIELDS = {"raw_audio", "audio", "audio_data", "pcm", "samples"}
 AUDIO_STAMP_FIELDS = ("audio_start", "audio_start_time", "start_time", "stamp")
 # Ids are deliberately excluded: long and uninformative drawn over a video frame.
 LABEL_HINTS = ("class", "label", "name", "confidence", "score")
+
+# Per-field overrides for the derived GeoJSON style, keyed by
+# "schema_name.dotted.path". "line" draws a closed boundary with no fill, so
+# markers underneath the ring stay clickable.
+GEOJSON_OVERRIDES: dict[str, dict] = {
+    "cdcl_umd_msgs/msg/Geofence.coordinates": {"geometry": "line", "color": "#ff8000"},
+}
 
 COLORS = (
     "#e6194b", "#3cb44b", "#4363d8", "#f58231", "#911eb4", "#46f0f0",
@@ -52,6 +63,15 @@ ANNOTATIONS = ("image_annotations", "foxglove_msgs/msg/ImageAnnotations", True)
 LOG = ("log", "foxglove_msgs/msg/Log", True)
 AUDIO = ("audio", "foxglove_msgs/msg/RawAudio", False)
 
+# An image field is offered on both image schemas. What a publisher actually
+# puts on the wire is not settled by the .msg — CDCL nodes fill a declared
+# sensor_msgs/Image with JPEG bytes — so the field takes its own schema's slot
+# first and the other one too if nothing else wants it (see build_specs). At
+# runtime each converter inspects the bytes and emits only if they are its kind.
+IMAGE_RAW = ("image", "sensor_msgs/msg/Image", False)
+IMAGE_COMPRESSED = ("image", "sensor_msgs/msg/CompressedImage", False)
+IMAGE_TYPES = ("sensor_msgs/Image", "sensor_msgs/CompressedImage")
+
 
 def _through(schema: str) -> tuple[str, str, bool]:
     return ("passthrough", schema, False)
@@ -60,8 +80,8 @@ def _through(schema: str) -> tuple[str, str, bool]:
 # Options are tried in order; a NavSatFix prefers the native pass-through (the
 # Map panel renders it directly) and falls back to GeoJSON once that is taken.
 SCALAR_TARGETS: dict[str, tuple] = {
-    "sensor_msgs/Image": (("image", "sensor_msgs/msg/Image", False),),
-    "sensor_msgs/CompressedImage": (("image", "sensor_msgs/msg/CompressedImage", False),),
+    "sensor_msgs/Image": (IMAGE_RAW, IMAGE_COMPRESSED),
+    "sensor_msgs/CompressedImage": (IMAGE_COMPRESSED, IMAGE_RAW),
     "sensor_msgs/NavSatFix": (("navsatfix", "sensor_msgs/msg/NavSatFix", False), GEOJSON),
     "gps_msgs/GPSFix": (("navsatfix", "gps_msgs/msg/GPSFix", False), GEOJSON),
     "vision_msgs/BoundingBox2D": (ANNOTATIONS,),
@@ -118,6 +138,64 @@ TOPIC_RULES = [
             "uav_target_boxes.target_location_gimbal_plane": "gimbal",
             "uav_target_boxes.target_location_rangefinder": "rangefinder",
         },
+        # The localization to show by default. It keeps its topic converter like
+        # the other two, and additionally stays on the schema converter, so a
+        # TargetBoxArray topic nobody listed above — or a panel pointed at the
+        # parent topic — still draws targets somewhere.
+        "default_paths": ["uav_target_boxes.target_location_altimeter_plane"],
+    },
+]
+
+# ---------------------------------------------------------------------------
+# Track policy
+# ---------------------------------------------------------------------------
+# A track is more than a point — it carries a covariance and a velocity — so the
+# message holding the array is drawn by this rule instead of the generic walk,
+# and produces three outputs:
+#
+#   * one topic per track id, on Foxglove's own point schema, carrying the
+#     position covariance and the flag that marks it as a real estimate;
+#   * one GeoJSON layer per tracker status (/active_tracks/tentative and so on),
+#     each drawing every track in that state — the states are read from the
+#     `STATUS_*` constants of the track message, so a new one adds its own topic;
+#   * the whole array, active tracks only, as one GeoJSON layer on the source
+#     topic, drawing each track with the covariance ellipse, heading arrow and
+#     the same per-id color the individual topics use.
+#
+# A converter's output topic is fixed when it registers, so the per-id topics
+# need the ids enumerated up front. Ids from 0 to max_id are declared; a track
+# whose id lands outside that range gets no topic of its own (raise max_id if
+# the tracker hands out ids beyond it) but still appears in the layers. Ids are
+# handed out as targets are born rather than reused, so max_id is a run-length
+# budget, not a count of simultaneous tracks: a 21-minute bench bag reached id
+# 34 with never more than 14 tracks in the array at once.
+# Each per-id converter emits nothing on steps where its id is absent from the
+# array, so unused topics stay empty rather than showing stale points.
+#
+# How any of it is drawn is in converterRuntime.ts; the rule only says which
+# field is which.
+
+TRACK_RULES = [
+    {
+        "schema": "cdcl_umd_msgs/msg/TrackArray",
+        "topics": ["/active_tracks"],
+        # foxglove.LocationFix is the Map panel's native point schema and the one
+        # that takes a position covariance with a covariance *type* beside it.
+        "output_schema": "foxglove_msgs/msg/LocationFix",
+        "array_path": ["tracks"],
+        "id_field": "track_id",
+        "position_path": ["position"],
+        # ENU m/s; becomes velocity, speed and heading on every output.
+        "velocity_field": "velocity",
+        # 4x4 [x_utm, y_utm, vx, vy]; the leading 2x2 block is the position block.
+        "covariance_field": "covariance",
+        # Only tracks at this status are drawn on the per-id topics and the
+        # combined layer: TrackState.STATUS_ACTIVE. A message that has no such
+        # field is drawn in full rather than hidden. Every other state is on its
+        # own /active_tracks/<status> layer.
+        "status_field": "status",
+        "active_status": 1,
+        "max_id": 63,
     },
 ]
 
@@ -162,11 +240,14 @@ class Convertible:
     @property
     def geometry(self) -> str:
         """Only multi-valued fields can be rings; the message name is a hint too,
-        so Geofence.coordinates is recognised though the field name is generic."""
+        so Geofence.coordinates is recognised though the field name is generic.
+        A ring that is a field of view is drawn unfilled ("line")."""
         if not self.through_array:
             return "point"
         haystack = f"{self.schema.split('/')[-1]}.{self.dotted}".lower()
-        return "polygon" if any(h in haystack for h in POLYGON_HINTS) else "point"
+        if not any(h in haystack for h in POLYGON_HINTS):
+            return "point"
+        return "line" if any(h in haystack for h in OUTLINE_HINTS) else "polygon"
 
 
 def humanize(name: str) -> str:
@@ -195,8 +276,10 @@ def normalize_type(raw: str, package: str) -> tuple[str, bool]:
     return f"{package}/{base}", is_array  # bare `TargetBox` is same-package
 
 
-def parse_msg(path: Path, package: str) -> tuple[Field, ...]:
+def parse_msg(path: Path, package: str) -> tuple[tuple[Field, ...], dict[str, str]]:
+    """The message's fields, and its constants as raw `NAME -> value` text."""
     fields = []
+    constants: dict[str, str] = {}
 
     for raw_line in path.read_text().splitlines():
         line = raw_line.split("#", 1)[0].strip()
@@ -207,18 +290,21 @@ def parse_msg(path: Path, package: str) -> tuple[Field, ...]:
         if len(parts) < 2:
             continue
 
-        type_str, name = parts[0], parts[1]
-        # Skip constants: `uint8 ACTIVE = 1` and `uint8 ACTIVE=1`.
-        if "=" in name or (len(parts) > 2 and parts[2].startswith("=")):
+        # Constants: `uint8 ACTIVE = 1` and `uint8 ACTIVE=1`.
+        constant = re.match(r"^(\w+)\s*=\s*(.+)$", " ".join(parts[1:]))
+        if constant is not None:
+            constants[constant.group(1)] = constant.group(2).strip()
             continue
 
-        base_type, is_array = normalize_type(type_str, package)
-        fields.append(Field(name=name, base_type=base_type, is_array=is_array))
+        base_type, is_array = normalize_type(parts[0], package)
+        fields.append(Field(name=parts[1], base_type=base_type, is_array=is_array))
 
-    return tuple(fields)
+    return tuple(fields), constants
 
 
-def load_package(package_dir: Path) -> tuple[str, dict[str, tuple[Field, ...]]]:
+def load_package(
+    package_dir: Path,
+) -> tuple[str, dict[str, tuple[Field, ...]], dict[str, dict[str, str]]]:
     """Indexes every .msg in the package, keyed by `pkg/Type`."""
     name = package_dir.resolve().name
     package_xml = package_dir / "package.xml"
@@ -233,12 +319,15 @@ def load_package(package_dir: Path) -> tuple[str, dict[str, tuple[Field, ...]]]:
         raise SystemExit(f"No msg/ directory in {package_dir}")
 
     # rglob, not glob: subdirectories such as msg/radar/ hold real messages.
-    index = {
+    parsed = {
         f"{name}/{msg_file.stem}": parse_msg(msg_file, name)
         for msg_file in sorted(msg_root.rglob("*.msg"))
     }
 
-    return name, index
+    index = {type_name: fields for type_name, (fields, _) in parsed.items()}
+    constants = {type_name: values for type_name, (_, values) in parsed.items()}
+
+    return name, index, constants
 
 
 def walk(schema: str, index: dict[str, tuple[Field, ...]]) -> tuple[list[Convertible], list[str]]:
@@ -307,6 +396,7 @@ def geojson_entry(item: Convertible, label: str) -> dict:
         "geometry": item.geometry,
         "color": item.color,
     }
+    entry.update(GEOJSON_OVERRIDES.get(f"{item.schema}.{item.dotted}", {}))
     properties = [name for name in item.siblings if name != item.leaf][:12]
     if properties:
         entry["propertyFields"] = properties
@@ -322,7 +412,162 @@ def annotation_entry(item: Convertible) -> dict:
     }
 
 
-def build_op(item: Convertible, label: str, index: dict) -> dict:
+def track_element_type(rule: dict, index: dict) -> str | None:
+    """The message type of one element of the rule's track array."""
+    schema = rule["schema"]
+    fields = index.get(f"{schema.split('/')[0]}/{schema.split('/')[-1]}")
+
+    if fields is None:
+        return None
+
+    array = next((f for f in fields if f.name == rule["array_path"][0]), None)
+
+    return array.base_type if array is not None and array.is_array else None
+
+
+def check_track_rule(rule: dict, index: dict) -> list[str]:
+    """Warns if the .msg files no longer have the fields the rule names."""
+    schema = rule["schema"]
+    element_type = track_element_type(rule, index)
+
+    if element_type is None:
+        return [f"{schema}: track rule skipped, no array field {rule['array_path'][0]}"]
+
+    names = {f.name for f in index.get(element_type, ())}
+    missing = [
+        name
+        for name in (
+            rule["id_field"],
+            rule["position_path"][0],
+            rule.get("velocity_field"),
+            rule.get("covariance_field"),
+            rule.get("status_field"),
+        )
+        if name and name not in names
+    ]
+
+    return [f"{schema}: track field {name} missing from {element_type}" for name in missing]
+
+
+def track_selector(
+    rule: dict,
+    index: dict,
+    match_value: int | None = None,
+    status: int | None = None,
+) -> dict:
+    """Where the id, position, covariance and velocity of a track are.
+
+    `status` overrides which tracker state is kept, for the per-status layers;
+    the rule's active status is what everything else draws.
+    """
+    select = {
+        "arrayPath": list(rule["array_path"]),
+        "idField": rule["id_field"],
+        "positionPath": list(rule["position_path"]),
+    }
+
+    for key, rule_key in (
+        ("velocityField", "velocity_field"),
+        ("covarianceField", "covariance_field"),
+        ("statusField", "status_field"),
+    ):
+        if rule.get(rule_key):
+            select[key] = rule[rule_key]
+
+    status_value = rule.get("active_status") if status is None else status
+    if rule.get("status_field") and status_value is not None:
+        select["statusValue"] = status_value
+
+    # Every scalar of the track element is worth a row in a Map tooltip.
+    properties = [
+        f.name
+        for f in index.get(track_element_type(rule, index), ())
+        if f.base_type in ROS_PRIMITIVES and not f.is_array
+    ][:12]
+    if properties:
+        select["propertyFields"] = properties
+
+    if match_value is not None:
+        select["matchValue"] = match_value
+
+    return select
+
+
+def track_op(rule: dict, index: dict) -> dict:
+    """The combined GeoJSON layer: every track, drawn in full."""
+    return {"kind": "track_geojson", "track": track_selector(rule, index)}
+
+
+def track_statuses(rule: dict, index: dict, constants: dict) -> dict[str, int]:
+    """The tracker's states as `name -> value`, from the message's constants.
+
+    `status` names its constants `STATUS_ACTIVE`, `STATUS_DORMANT` and so on, so
+    the prefix is the field's own name: a state added to the .msg turns up here
+    without the rule having to list it.
+    """
+    status_field = rule.get("status_field")
+    element_type = track_element_type(rule, index)
+
+    if not status_field or element_type is None:
+        return {}
+
+    prefix = f"{status_field.upper()}_"
+    statuses = {}
+
+    for name, value in constants.get(element_type, {}).items():
+        if name.startswith(prefix) and re.fullmatch(r"[+-]?\d+", value):
+            statuses[name[len(prefix):].lower()] = int(value)
+
+    return dict(sorted(statuses.items(), key=lambda item: item[1]))
+
+
+def track_status_topic_specs(rule: dict, index: dict, constants: dict) -> list[dict]:
+    """One GeoJSON layer per tracker state, e.g. /active_tracks/dormant.
+
+    The per-id topics only carry active tracks, and a track spends most of its
+    life in the other states; these layers are where those are visible. Each
+    draws what the combined layer draws, narrowed to the one status.
+    """
+    return [
+        {
+            "inputTopic": topic,
+            "outputTopic": f"{topic}/{status}",
+            "outputSchemaName": GEOJSON[1],
+            "op": {
+                "kind": "track_geojson",
+                "track": track_selector(rule, index, status=value),
+            },
+        }
+        for topic in rule["topics"]
+        for status, value in track_statuses(rule, index, constants).items()
+    ]
+
+
+def track_topic_specs(rule: dict, index: dict) -> list[dict]:
+    """One LocationFix converter per pre-declared id, e.g. /active_tracks/01.
+
+    Ids are zero-padded to the width of max_id, so the topic list sorts in id
+    order instead of lexically — /active_tracks/10 lands after /active_tracks/09
+    rather than between /active_tracks/1 and /active_tracks/2.
+    """
+    width = len(str(rule["max_id"]))
+
+    return [
+        {
+            "inputTopic": topic,
+            "outputTopic": f"{topic}/{element_id:0{width}d}",
+            "outputSchemaName": rule["output_schema"],
+            "op": {
+                "kind": "location_fix_select",
+                "select": track_selector(rule, index, element_id),
+            },
+        }
+        for topic in rule["topics"]
+        for element_id in range(rule["max_id"] + 1)
+    ]
+
+
+def build_op(item: Convertible, label: str, index: dict, to_schema: str) -> dict:
     kind = item.options[0][0]
 
     if kind == "geojson":
@@ -333,6 +578,10 @@ def build_op(item: Convertible, label: str, index: dict) -> dict:
         return {"kind": "log", "entries": [{"path": list(item.path), "label": label}]}
 
     op = {"kind": kind, "path": list(item.path)}
+
+    if kind == "image":
+        # The slot this converter fills decides which payload it emits on.
+        op["payload"] = "compressed" if to_schema == IMAGE_COMPRESSED[1] else "raw"
 
     if kind == "audio":
         by_name = {f.name: f for f in index.get(item.container, ())}
@@ -396,7 +645,9 @@ def derive_key(item: Convertible, group: list[Convertible], overrides: dict) -> 
     return "_".join(tokens[shared:]) or item.leaf
 
 
-def build_specs(package: str, index: dict) -> tuple[list[dict], list[dict], list[str]]:
+def build_specs(
+    package: str, index: dict, constants: dict
+) -> tuple[list[dict], list[dict], list[str]]:
     schema_specs: list[dict] = []
     topic_specs: list[dict] = []
     notes: list[str] = []
@@ -405,21 +656,48 @@ def build_specs(package: str, index: dict) -> tuple[list[dict], list[dict], list
     for rule in TOPIC_RULES:
         rules_by_schema.setdefault(rule["schema"], []).append(rule)
 
+    track_rules_by_schema: dict[str, list[dict]] = {}
+    for rule in TRACK_RULES:
+        notes.extend(check_track_rule(rule, index))
+        topic_specs.extend(track_topic_specs(rule, index))
+        topic_specs.extend(track_status_topic_specs(rule, index, constants))
+
+        if rule.get("status_field") and not track_statuses(rule, index, constants):
+            notes.append(
+                f"{rule['schema']}: no {rule['status_field'].upper()}_* constants,"
+                " so no per-status layers"
+            )
+        track_rules_by_schema.setdefault(rule["schema"], []).append(rule)
+
     for type_name in sorted(index):
         schema = f"{package}/msg/{type_name.split('/')[-1]}"
         found, skipped = walk(schema, index)
-        notes.extend(f"{schema}: skipped {note}" for note in skipped)
+
+        # Fields under a track array are drawn by its rule, not by the generic
+        # walk, so the walk having no target for them is not worth reporting.
+        track_prefixes = [
+            ".".join(rule["array_path"]) for rule in track_rules_by_schema.get(schema, [])
+        ]
+        notes.extend(
+            f"{schema}: skipped {note}"
+            for note in skipped
+            if not any(note.startswith(f"{prefix}.") for prefix in track_prefixes)
+        )
 
         # Fields a topic converter owns are removed from the schema converter, so
         # nothing is rendered twice.
         split: list[Convertible] = []
         for rule in rules_by_schema.get(schema, []):
             claimed = claimed_by_rule(rule, found)
-            split.extend(claimed)
+            # A default path gets its topic converter *and* stays a candidate for
+            # the schema converter, so the slot the group contended over is filled
+            # by one of them rather than left empty.
+            defaults = set(rule.get("default_paths", ()))
+            split.extend(item for item in claimed if item.dotted not in defaults)
 
             for item in claimed:
                 key = derive_key(item, claimed, rule["keys"])
-                op = build_op(item, humanize(key), index)
+                op = build_op(item, humanize(key), index, item.options[0][1])
                 for topic in rule["topics"]:
                     topic_specs.append(
                         {
@@ -430,6 +708,26 @@ def build_specs(package: str, index: dict) -> tuple[list[dict], list[dict], list
                         }
                     )
 
+        # A track rule draws its whole array itself — position, covariance
+        # ellipse and heading arrow together — so the fields underneath it are
+        # taken off the generic walk and the GeoJSON slot is spoken for.
+        reserved: dict[str, str] = {}
+        for rule in track_rules_by_schema.get(schema, []):
+            prefix = ".".join(rule["array_path"])
+            split.extend(
+                item
+                for item in found
+                if item.dotted == prefix or item.dotted.startswith(f"{prefix}.")
+            )
+            reserved[GEOJSON[1]] = prefix
+            schema_specs.append(
+                {
+                    "fromSchemaName": schema,
+                    "toSchemaName": GEOJSON[1],
+                    "op": track_op(rule, index),
+                }
+            )
+
         split_paths = {item.dotted for item in split}
         candidates = [item for item in found if item.dotted not in split_paths]
 
@@ -438,6 +736,8 @@ def build_specs(package: str, index: dict) -> tuple[list[dict], list[dict], list
 
         for item in candidates:
             for kind, to_schema, is_aggregate in item.options:
+                if to_schema in reserved:
+                    continue
                 if is_aggregate:
                     aggregated.setdefault(to_schema, []).append(item)
                     break
@@ -447,17 +747,38 @@ def build_specs(package: str, index: dict) -> tuple[list[dict], list[dict], list
                         {
                             "fromSchemaName": schema,
                             "toSchemaName": to_schema,
-                            "op": build_op(item, humanize(item.leaf), index),
+                            "op": build_op(item, humanize(item.leaf), index, to_schema),
                         }
                     )
                     break
             else:
                 held = ", ".join(
-                    f"{s} held by {exclusive[s].dotted}"
+                    f"{s} held by {exclusive[s].dotted if s in exclusive else reserved[s]}"
                     for _, s, _ in item.options
-                    if s in exclusive
+                    if s in exclusive or s in reserved
                 )
                 notes.append(f"{schema}: no free slot for {item.dotted} ({held})")
+
+        # Second pass: an image field also takes the other image slot when
+        # nothing else claimed it, so a topic works whether the payload turns
+        # out to be raw or compressed. Two image fields in one message keep one
+        # slot each, since the first pass already assigned their own schemas.
+        for item in candidates:
+            if item.base_type not in IMAGE_TYPES:
+                continue
+
+            for _, to_schema, _ in item.options:
+                if to_schema in exclusive or to_schema in reserved:
+                    continue
+
+                exclusive[to_schema] = item
+                schema_specs.append(
+                    {
+                        "fromSchemaName": schema,
+                        "toSchemaName": to_schema,
+                        "op": build_op(item, humanize(item.leaf), index, to_schema),
+                    }
+                )
 
         for to_schema, items in aggregated.items():
             labels = labels_for(items)
@@ -525,8 +846,8 @@ def main() -> None:
     args = parser.parse_args()
 
     package_dir = resolve_package(args.package)
-    package, index = load_package(package_dir)
-    schema_specs, topic_specs, notes = build_specs(package, index)
+    package, index, constants = load_package(package_dir)
+    schema_specs, topic_specs, notes = build_specs(package, index, constants)
 
     args.out.parent.mkdir(parents=True, exist_ok=True)
     args.out.write_text(render(schema_specs, topic_specs))

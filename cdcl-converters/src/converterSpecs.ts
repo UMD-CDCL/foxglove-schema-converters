@@ -27,7 +27,7 @@ export const SCHEMA_CONVERTER_SPECS: readonly SchemaConverterSpec[] =
             "fov_polygon"
           ],
           "label": "Fov polygon",
-          "geometry": "polygon",
+          "geometry": "line",
           "color": "#46f0f0",
           "propertyFields": [
             "coverage_area"
@@ -58,12 +58,24 @@ export const SCHEMA_CONVERTER_SPECS: readonly SchemaConverterSpec[] =
   },
   {
     "fromSchemaName": "cdcl_umd_msgs/msg/CasualtyImage",
+    "toSchemaName": "sensor_msgs/msg/CompressedImage",
+    "op": {
+      "kind": "image",
+      "path": [
+        "image"
+      ],
+      "payload": "compressed"
+    }
+  },
+  {
+    "fromSchemaName": "cdcl_umd_msgs/msg/CasualtyImage",
     "toSchemaName": "sensor_msgs/msg/Image",
     "op": {
       "kind": "image",
       "path": [
         "image"
-      ]
+      ],
+      "payload": "raw"
     }
   },
   {
@@ -93,11 +105,65 @@ export const SCHEMA_CONVERTER_SPECS: readonly SchemaConverterSpec[] =
       "kind": "image",
       "path": [
         "image"
-      ]
+      ],
+      "payload": "compressed"
     }
   },
   {
     "fromSchemaName": "cdcl_umd_msgs/msg/CasualtyImageCompressed",
+    "toSchemaName": "sensor_msgs/msg/Image",
+    "op": {
+      "kind": "image",
+      "path": [
+        "image"
+      ],
+      "payload": "raw"
+    }
+  },
+  {
+    "fromSchemaName": "cdcl_umd_msgs/msg/CasualtyImageCompressed",
+    "toSchemaName": "sensor_msgs/msg/NavSatFix",
+    "op": {
+      "kind": "navsatfix",
+      "path": [
+        "position"
+      ]
+    }
+  },
+  {
+    "fromSchemaName": "cdcl_umd_msgs/msg/CasualtyImageCompressedWithLevel",
+    "toSchemaName": "geometry_msgs/msg/Point",
+    "op": {
+      "kind": "passthrough",
+      "path": [
+        "position_in_sensor_frame"
+      ]
+    }
+  },
+  {
+    "fromSchemaName": "cdcl_umd_msgs/msg/CasualtyImageCompressedWithLevel",
+    "toSchemaName": "sensor_msgs/msg/CompressedImage",
+    "op": {
+      "kind": "image",
+      "path": [
+        "image"
+      ],
+      "payload": "compressed"
+    }
+  },
+  {
+    "fromSchemaName": "cdcl_umd_msgs/msg/CasualtyImageCompressedWithLevel",
+    "toSchemaName": "sensor_msgs/msg/Image",
+    "op": {
+      "kind": "image",
+      "path": [
+        "image"
+      ],
+      "payload": "raw"
+    }
+  },
+  {
+    "fromSchemaName": "cdcl_umd_msgs/msg/CasualtyImageCompressedWithLevel",
     "toSchemaName": "sensor_msgs/msg/NavSatFix",
     "op": {
       "kind": "navsatfix",
@@ -118,12 +184,24 @@ export const SCHEMA_CONVERTER_SPECS: readonly SchemaConverterSpec[] =
   },
   {
     "fromSchemaName": "cdcl_umd_msgs/msg/CasualtyImageWithLevel",
+    "toSchemaName": "sensor_msgs/msg/CompressedImage",
+    "op": {
+      "kind": "image",
+      "path": [
+        "image"
+      ],
+      "payload": "compressed"
+    }
+  },
+  {
+    "fromSchemaName": "cdcl_umd_msgs/msg/CasualtyImageWithLevel",
     "toSchemaName": "sensor_msgs/msg/Image",
     "op": {
       "kind": "image",
       "path": [
         "image"
-      ]
+      ],
+      "payload": "raw"
     }
   },
   {
@@ -138,6 +216,16 @@ export const SCHEMA_CONVERTER_SPECS: readonly SchemaConverterSpec[] =
   },
   {
     "fromSchemaName": "cdcl_umd_msgs/msg/CasualtyLocation",
+    "toSchemaName": "sensor_msgs/msg/NavSatFix",
+    "op": {
+      "kind": "navsatfix",
+      "path": [
+        "position"
+      ]
+    }
+  },
+  {
+    "fromSchemaName": "cdcl_umd_msgs/msg/CasualtyOrientation",
     "toSchemaName": "sensor_msgs/msg/NavSatFix",
     "op": {
       "kind": "navsatfix",
@@ -212,6 +300,86 @@ export const SCHEMA_CONVERTER_SPECS: readonly SchemaConverterSpec[] =
     }
   },
   {
+    "fromSchemaName": "cdcl_umd_msgs/msg/EnrichedTargetBox",
+    "toSchemaName": "sensor_msgs/msg/NavSatFix",
+    "op": {
+      "kind": "navsatfix",
+      "path": [
+        "position"
+      ]
+    }
+  },
+  {
+    "fromSchemaName": "cdcl_umd_msgs/msg/EnrichedTargetBoxArray",
+    "toSchemaName": "foxglove_msgs/msg/GeoJSON",
+    "op": {
+      "kind": "geojson",
+      "entries": [
+        {
+          "path": [
+            "observations",
+            "position"
+          ],
+          "label": "Position",
+          "geometry": "point",
+          "color": "#3cb44b",
+          "propertyFields": [
+            "platform_id",
+            "source_seq",
+            "bbox_index",
+            "loc_method",
+            "altitude_m",
+            "detection_confidence",
+            "bbox_center_px_x",
+            "bbox_center_px_y",
+            "bbox_size_px_x",
+            "bbox_size_px_y",
+            "ref_px_x",
+            "ref_px_y"
+          ]
+        },
+        {
+          "path": [
+            "fov_polygon"
+          ],
+          "label": "Fov polygon",
+          "geometry": "line",
+          "color": "#4363d8",
+          "propertyFields": [
+            "fov_area_m2",
+            "measurement_type",
+            "sigma_cam_h",
+            "sigma_cam_z",
+            "sigma_yaw_rad",
+            "sigma_pitch_rad",
+            "image_width",
+            "image_height"
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "fromSchemaName": "cdcl_umd_msgs/msg/EnrichedTargetBoxArray",
+    "toSchemaName": "geometry_msgs/msg/Quaternion",
+    "op": {
+      "kind": "passthrough",
+      "path": [
+        "camera_orientation"
+      ]
+    }
+  },
+  {
+    "fromSchemaName": "cdcl_umd_msgs/msg/EnrichedTargetBoxArray",
+    "toSchemaName": "sensor_msgs/msg/NavSatFix",
+    "op": {
+      "kind": "navsatfix",
+      "path": [
+        "camera_position"
+      ]
+    }
+  },
+  {
     "fromSchemaName": "cdcl_umd_msgs/msg/Geofence",
     "toSchemaName": "foxglove_msgs/msg/GeoJSON",
     "op": {
@@ -222,6 +390,22 @@ export const SCHEMA_CONVERTER_SPECS: readonly SchemaConverterSpec[] =
             "coordinates"
           ],
           "label": "Coordinates",
+          "geometry": "line",
+          "color": "#ff8000"
+        },
+        {
+          "path": [
+            "exclusion_zone_coordinates"
+          ],
+          "label": "Exclusion zone coordinates",
+          "geometry": "polygon",
+          "color": "#bcf60c"
+        },
+        {
+          "path": [
+            "launch_zone_coordinates"
+          ],
+          "label": "Launch zone coordinates",
           "geometry": "polygon",
           "color": "#4363d8"
         }
@@ -243,7 +427,9 @@ export const SCHEMA_CONVERTER_SPECS: readonly SchemaConverterSpec[] =
           "geometry": "point",
           "color": "#008080",
           "propertyFields": [
-            "casualty_id"
+            "casualty_id",
+            "is_expired",
+            "medic_assessed"
           ]
         }
       ]
@@ -266,7 +452,19 @@ export const SCHEMA_CONVERTER_SPECS: readonly SchemaConverterSpec[] =
       "kind": "image",
       "path": [
         "overlay_png"
-      ]
+      ],
+      "payload": "compressed"
+    }
+  },
+  {
+    "fromSchemaName": "cdcl_umd_msgs/msg/MosaicOverlay",
+    "toSchemaName": "sensor_msgs/msg/Image",
+    "op": {
+      "kind": "image",
+      "path": [
+        "overlay_png"
+      ],
+      "payload": "raw"
     }
   },
   {
@@ -320,7 +518,19 @@ export const SCHEMA_CONVERTER_SPECS: readonly SchemaConverterSpec[] =
       "kind": "image",
       "path": [
         "image"
-      ]
+      ],
+      "payload": "compressed"
+    }
+  },
+  {
+    "fromSchemaName": "cdcl_umd_msgs/msg/ObservationDataSource",
+    "toSchemaName": "sensor_msgs/msg/Image",
+    "op": {
+      "kind": "image",
+      "path": [
+        "image"
+      ],
+      "payload": "raw"
     }
   },
   {
@@ -453,6 +663,24 @@ export const SCHEMA_CONVERTER_SPECS: readonly SchemaConverterSpec[] =
           "label": "Coordinates",
           "geometry": "polygon",
           "color": "#008080"
+        },
+        {
+          "path": [
+            "exclusion_zones",
+            "exclusion_zone_coordinates"
+          ],
+          "label": "Exclusion zone coordinates",
+          "geometry": "polygon",
+          "color": "#a9a9a9"
+        },
+        {
+          "path": [
+            "exclusion_zones",
+            "launch_zone_coordinates"
+          ],
+          "label": "Launch zone coordinates",
+          "geometry": "polygon",
+          "color": "#46f0f0"
         }
       ]
     }
@@ -490,6 +718,20 @@ export const SCHEMA_CONVERTER_SPECS: readonly SchemaConverterSpec[] =
             "detection_class",
             "detection_confidence"
           ]
+        },
+        {
+          "path": [
+            "target_location_topo"
+          ],
+          "label": "Target location topo",
+          "geometry": "point",
+          "color": "#fabebe",
+          "propertyFields": [
+            "data_source_id",
+            "use_for_assessment",
+            "detection_class",
+            "detection_confidence"
+          ]
         }
       ]
     }
@@ -519,6 +761,30 @@ export const SCHEMA_CONVERTER_SPECS: readonly SchemaConverterSpec[] =
       "kind": "navsatfix",
       "path": [
         "target_location_altimeter_plane"
+      ]
+    }
+  },
+  {
+    "fromSchemaName": "cdcl_umd_msgs/msg/TargetBoxArray",
+    "toSchemaName": "foxglove_msgs/msg/GeoJSON",
+    "op": {
+      "kind": "geojson",
+      "entries": [
+        {
+          "path": [
+            "uav_target_boxes",
+            "target_location_altimeter_plane"
+          ],
+          "label": "Target location altimeter plane",
+          "geometry": "point",
+          "color": "#fabebe",
+          "propertyFields": [
+            "data_source_id",
+            "use_for_assessment",
+            "detection_class",
+            "detection_confidence"
+          ]
+        }
       ]
     }
   },
@@ -569,7 +835,19 @@ export const SCHEMA_CONVERTER_SPECS: readonly SchemaConverterSpec[] =
       "kind": "image",
       "path": [
         "source_img"
-      ]
+      ],
+      "payload": "compressed"
+    }
+  },
+  {
+    "fromSchemaName": "cdcl_umd_msgs/msg/TargetBoxArray",
+    "toSchemaName": "sensor_msgs/msg/Image",
+    "op": {
+      "kind": "image",
+      "path": [
+        "source_img"
+      ],
+      "payload": "raw"
     }
   },
   {
@@ -678,7 +956,19 @@ export const SCHEMA_CONVERTER_SPECS: readonly SchemaConverterSpec[] =
       "kind": "image",
       "path": [
         "source_img"
-      ]
+      ],
+      "payload": "compressed"
+    }
+  },
+  {
+    "fromSchemaName": "cdcl_umd_msgs/msg/TargetHistoryArray",
+    "toSchemaName": "sensor_msgs/msg/Image",
+    "op": {
+      "kind": "image",
+      "path": [
+        "source_img"
+      ],
+      "payload": "raw"
     }
   },
   {
@@ -776,6 +1066,56 @@ export const SCHEMA_CONVERTER_SPECS: readonly SchemaConverterSpec[] =
     }
   },
   {
+    "fromSchemaName": "cdcl_umd_msgs/msg/TrackArray",
+    "toSchemaName": "foxglove_msgs/msg/GeoJSON",
+    "op": {
+      "kind": "track_geojson",
+      "track": {
+        "arrayPath": [
+          "tracks"
+        ],
+        "idField": "track_id",
+        "positionPath": [
+          "position"
+        ],
+        "velocityField": "velocity",
+        "covarianceField": "covariance",
+        "statusField": "status",
+        "statusValue": 1,
+        "propertyFields": [
+          "track_id",
+          "status",
+          "imm_mu_static",
+          "imm_mu_cv",
+          "source_platform",
+          "tentative_hits",
+          "last_det_seq",
+          "last_det_bbox_index"
+        ]
+      }
+    }
+  },
+  {
+    "fromSchemaName": "cdcl_umd_msgs/msg/TrackState",
+    "toSchemaName": "geometry_msgs/msg/Vector3",
+    "op": {
+      "kind": "passthrough",
+      "path": [
+        "velocity"
+      ]
+    }
+  },
+  {
+    "fromSchemaName": "cdcl_umd_msgs/msg/TrackState",
+    "toSchemaName": "sensor_msgs/msg/NavSatFix",
+    "op": {
+      "kind": "navsatfix",
+      "path": [
+        "position"
+      ]
+    }
+  },
+  {
     "fromSchemaName": "cdcl_umd_msgs/msg/Waypoint",
     "toSchemaName": "geometry_msgs/msg/Quaternion",
     "op": {
@@ -827,6 +1167,2178 @@ export const SCHEMA_CONVERTER_SPECS: readonly SchemaConverterSpec[] =
 
 export const TOPIC_CONVERTER_SPECS: readonly TopicConverterSpec[] =
   [
+  {
+    "inputTopic": "/active_tracks",
+    "outputTopic": "/active_tracks/00",
+    "outputSchemaName": "foxglove_msgs/msg/LocationFix",
+    "op": {
+      "kind": "location_fix_select",
+      "select": {
+        "arrayPath": [
+          "tracks"
+        ],
+        "idField": "track_id",
+        "positionPath": [
+          "position"
+        ],
+        "velocityField": "velocity",
+        "covarianceField": "covariance",
+        "statusField": "status",
+        "statusValue": 1,
+        "propertyFields": [
+          "track_id",
+          "status",
+          "imm_mu_static",
+          "imm_mu_cv",
+          "source_platform",
+          "tentative_hits",
+          "last_det_seq",
+          "last_det_bbox_index"
+        ],
+        "matchValue": 0
+      }
+    }
+  },
+  {
+    "inputTopic": "/active_tracks",
+    "outputTopic": "/active_tracks/01",
+    "outputSchemaName": "foxglove_msgs/msg/LocationFix",
+    "op": {
+      "kind": "location_fix_select",
+      "select": {
+        "arrayPath": [
+          "tracks"
+        ],
+        "idField": "track_id",
+        "positionPath": [
+          "position"
+        ],
+        "velocityField": "velocity",
+        "covarianceField": "covariance",
+        "statusField": "status",
+        "statusValue": 1,
+        "propertyFields": [
+          "track_id",
+          "status",
+          "imm_mu_static",
+          "imm_mu_cv",
+          "source_platform",
+          "tentative_hits",
+          "last_det_seq",
+          "last_det_bbox_index"
+        ],
+        "matchValue": 1
+      }
+    }
+  },
+  {
+    "inputTopic": "/active_tracks",
+    "outputTopic": "/active_tracks/02",
+    "outputSchemaName": "foxglove_msgs/msg/LocationFix",
+    "op": {
+      "kind": "location_fix_select",
+      "select": {
+        "arrayPath": [
+          "tracks"
+        ],
+        "idField": "track_id",
+        "positionPath": [
+          "position"
+        ],
+        "velocityField": "velocity",
+        "covarianceField": "covariance",
+        "statusField": "status",
+        "statusValue": 1,
+        "propertyFields": [
+          "track_id",
+          "status",
+          "imm_mu_static",
+          "imm_mu_cv",
+          "source_platform",
+          "tentative_hits",
+          "last_det_seq",
+          "last_det_bbox_index"
+        ],
+        "matchValue": 2
+      }
+    }
+  },
+  {
+    "inputTopic": "/active_tracks",
+    "outputTopic": "/active_tracks/03",
+    "outputSchemaName": "foxglove_msgs/msg/LocationFix",
+    "op": {
+      "kind": "location_fix_select",
+      "select": {
+        "arrayPath": [
+          "tracks"
+        ],
+        "idField": "track_id",
+        "positionPath": [
+          "position"
+        ],
+        "velocityField": "velocity",
+        "covarianceField": "covariance",
+        "statusField": "status",
+        "statusValue": 1,
+        "propertyFields": [
+          "track_id",
+          "status",
+          "imm_mu_static",
+          "imm_mu_cv",
+          "source_platform",
+          "tentative_hits",
+          "last_det_seq",
+          "last_det_bbox_index"
+        ],
+        "matchValue": 3
+      }
+    }
+  },
+  {
+    "inputTopic": "/active_tracks",
+    "outputTopic": "/active_tracks/04",
+    "outputSchemaName": "foxglove_msgs/msg/LocationFix",
+    "op": {
+      "kind": "location_fix_select",
+      "select": {
+        "arrayPath": [
+          "tracks"
+        ],
+        "idField": "track_id",
+        "positionPath": [
+          "position"
+        ],
+        "velocityField": "velocity",
+        "covarianceField": "covariance",
+        "statusField": "status",
+        "statusValue": 1,
+        "propertyFields": [
+          "track_id",
+          "status",
+          "imm_mu_static",
+          "imm_mu_cv",
+          "source_platform",
+          "tentative_hits",
+          "last_det_seq",
+          "last_det_bbox_index"
+        ],
+        "matchValue": 4
+      }
+    }
+  },
+  {
+    "inputTopic": "/active_tracks",
+    "outputTopic": "/active_tracks/05",
+    "outputSchemaName": "foxglove_msgs/msg/LocationFix",
+    "op": {
+      "kind": "location_fix_select",
+      "select": {
+        "arrayPath": [
+          "tracks"
+        ],
+        "idField": "track_id",
+        "positionPath": [
+          "position"
+        ],
+        "velocityField": "velocity",
+        "covarianceField": "covariance",
+        "statusField": "status",
+        "statusValue": 1,
+        "propertyFields": [
+          "track_id",
+          "status",
+          "imm_mu_static",
+          "imm_mu_cv",
+          "source_platform",
+          "tentative_hits",
+          "last_det_seq",
+          "last_det_bbox_index"
+        ],
+        "matchValue": 5
+      }
+    }
+  },
+  {
+    "inputTopic": "/active_tracks",
+    "outputTopic": "/active_tracks/06",
+    "outputSchemaName": "foxglove_msgs/msg/LocationFix",
+    "op": {
+      "kind": "location_fix_select",
+      "select": {
+        "arrayPath": [
+          "tracks"
+        ],
+        "idField": "track_id",
+        "positionPath": [
+          "position"
+        ],
+        "velocityField": "velocity",
+        "covarianceField": "covariance",
+        "statusField": "status",
+        "statusValue": 1,
+        "propertyFields": [
+          "track_id",
+          "status",
+          "imm_mu_static",
+          "imm_mu_cv",
+          "source_platform",
+          "tentative_hits",
+          "last_det_seq",
+          "last_det_bbox_index"
+        ],
+        "matchValue": 6
+      }
+    }
+  },
+  {
+    "inputTopic": "/active_tracks",
+    "outputTopic": "/active_tracks/07",
+    "outputSchemaName": "foxglove_msgs/msg/LocationFix",
+    "op": {
+      "kind": "location_fix_select",
+      "select": {
+        "arrayPath": [
+          "tracks"
+        ],
+        "idField": "track_id",
+        "positionPath": [
+          "position"
+        ],
+        "velocityField": "velocity",
+        "covarianceField": "covariance",
+        "statusField": "status",
+        "statusValue": 1,
+        "propertyFields": [
+          "track_id",
+          "status",
+          "imm_mu_static",
+          "imm_mu_cv",
+          "source_platform",
+          "tentative_hits",
+          "last_det_seq",
+          "last_det_bbox_index"
+        ],
+        "matchValue": 7
+      }
+    }
+  },
+  {
+    "inputTopic": "/active_tracks",
+    "outputTopic": "/active_tracks/08",
+    "outputSchemaName": "foxglove_msgs/msg/LocationFix",
+    "op": {
+      "kind": "location_fix_select",
+      "select": {
+        "arrayPath": [
+          "tracks"
+        ],
+        "idField": "track_id",
+        "positionPath": [
+          "position"
+        ],
+        "velocityField": "velocity",
+        "covarianceField": "covariance",
+        "statusField": "status",
+        "statusValue": 1,
+        "propertyFields": [
+          "track_id",
+          "status",
+          "imm_mu_static",
+          "imm_mu_cv",
+          "source_platform",
+          "tentative_hits",
+          "last_det_seq",
+          "last_det_bbox_index"
+        ],
+        "matchValue": 8
+      }
+    }
+  },
+  {
+    "inputTopic": "/active_tracks",
+    "outputTopic": "/active_tracks/09",
+    "outputSchemaName": "foxglove_msgs/msg/LocationFix",
+    "op": {
+      "kind": "location_fix_select",
+      "select": {
+        "arrayPath": [
+          "tracks"
+        ],
+        "idField": "track_id",
+        "positionPath": [
+          "position"
+        ],
+        "velocityField": "velocity",
+        "covarianceField": "covariance",
+        "statusField": "status",
+        "statusValue": 1,
+        "propertyFields": [
+          "track_id",
+          "status",
+          "imm_mu_static",
+          "imm_mu_cv",
+          "source_platform",
+          "tentative_hits",
+          "last_det_seq",
+          "last_det_bbox_index"
+        ],
+        "matchValue": 9
+      }
+    }
+  },
+  {
+    "inputTopic": "/active_tracks",
+    "outputTopic": "/active_tracks/10",
+    "outputSchemaName": "foxglove_msgs/msg/LocationFix",
+    "op": {
+      "kind": "location_fix_select",
+      "select": {
+        "arrayPath": [
+          "tracks"
+        ],
+        "idField": "track_id",
+        "positionPath": [
+          "position"
+        ],
+        "velocityField": "velocity",
+        "covarianceField": "covariance",
+        "statusField": "status",
+        "statusValue": 1,
+        "propertyFields": [
+          "track_id",
+          "status",
+          "imm_mu_static",
+          "imm_mu_cv",
+          "source_platform",
+          "tentative_hits",
+          "last_det_seq",
+          "last_det_bbox_index"
+        ],
+        "matchValue": 10
+      }
+    }
+  },
+  {
+    "inputTopic": "/active_tracks",
+    "outputTopic": "/active_tracks/11",
+    "outputSchemaName": "foxglove_msgs/msg/LocationFix",
+    "op": {
+      "kind": "location_fix_select",
+      "select": {
+        "arrayPath": [
+          "tracks"
+        ],
+        "idField": "track_id",
+        "positionPath": [
+          "position"
+        ],
+        "velocityField": "velocity",
+        "covarianceField": "covariance",
+        "statusField": "status",
+        "statusValue": 1,
+        "propertyFields": [
+          "track_id",
+          "status",
+          "imm_mu_static",
+          "imm_mu_cv",
+          "source_platform",
+          "tentative_hits",
+          "last_det_seq",
+          "last_det_bbox_index"
+        ],
+        "matchValue": 11
+      }
+    }
+  },
+  {
+    "inputTopic": "/active_tracks",
+    "outputTopic": "/active_tracks/12",
+    "outputSchemaName": "foxglove_msgs/msg/LocationFix",
+    "op": {
+      "kind": "location_fix_select",
+      "select": {
+        "arrayPath": [
+          "tracks"
+        ],
+        "idField": "track_id",
+        "positionPath": [
+          "position"
+        ],
+        "velocityField": "velocity",
+        "covarianceField": "covariance",
+        "statusField": "status",
+        "statusValue": 1,
+        "propertyFields": [
+          "track_id",
+          "status",
+          "imm_mu_static",
+          "imm_mu_cv",
+          "source_platform",
+          "tentative_hits",
+          "last_det_seq",
+          "last_det_bbox_index"
+        ],
+        "matchValue": 12
+      }
+    }
+  },
+  {
+    "inputTopic": "/active_tracks",
+    "outputTopic": "/active_tracks/13",
+    "outputSchemaName": "foxglove_msgs/msg/LocationFix",
+    "op": {
+      "kind": "location_fix_select",
+      "select": {
+        "arrayPath": [
+          "tracks"
+        ],
+        "idField": "track_id",
+        "positionPath": [
+          "position"
+        ],
+        "velocityField": "velocity",
+        "covarianceField": "covariance",
+        "statusField": "status",
+        "statusValue": 1,
+        "propertyFields": [
+          "track_id",
+          "status",
+          "imm_mu_static",
+          "imm_mu_cv",
+          "source_platform",
+          "tentative_hits",
+          "last_det_seq",
+          "last_det_bbox_index"
+        ],
+        "matchValue": 13
+      }
+    }
+  },
+  {
+    "inputTopic": "/active_tracks",
+    "outputTopic": "/active_tracks/14",
+    "outputSchemaName": "foxglove_msgs/msg/LocationFix",
+    "op": {
+      "kind": "location_fix_select",
+      "select": {
+        "arrayPath": [
+          "tracks"
+        ],
+        "idField": "track_id",
+        "positionPath": [
+          "position"
+        ],
+        "velocityField": "velocity",
+        "covarianceField": "covariance",
+        "statusField": "status",
+        "statusValue": 1,
+        "propertyFields": [
+          "track_id",
+          "status",
+          "imm_mu_static",
+          "imm_mu_cv",
+          "source_platform",
+          "tentative_hits",
+          "last_det_seq",
+          "last_det_bbox_index"
+        ],
+        "matchValue": 14
+      }
+    }
+  },
+  {
+    "inputTopic": "/active_tracks",
+    "outputTopic": "/active_tracks/15",
+    "outputSchemaName": "foxglove_msgs/msg/LocationFix",
+    "op": {
+      "kind": "location_fix_select",
+      "select": {
+        "arrayPath": [
+          "tracks"
+        ],
+        "idField": "track_id",
+        "positionPath": [
+          "position"
+        ],
+        "velocityField": "velocity",
+        "covarianceField": "covariance",
+        "statusField": "status",
+        "statusValue": 1,
+        "propertyFields": [
+          "track_id",
+          "status",
+          "imm_mu_static",
+          "imm_mu_cv",
+          "source_platform",
+          "tentative_hits",
+          "last_det_seq",
+          "last_det_bbox_index"
+        ],
+        "matchValue": 15
+      }
+    }
+  },
+  {
+    "inputTopic": "/active_tracks",
+    "outputTopic": "/active_tracks/16",
+    "outputSchemaName": "foxglove_msgs/msg/LocationFix",
+    "op": {
+      "kind": "location_fix_select",
+      "select": {
+        "arrayPath": [
+          "tracks"
+        ],
+        "idField": "track_id",
+        "positionPath": [
+          "position"
+        ],
+        "velocityField": "velocity",
+        "covarianceField": "covariance",
+        "statusField": "status",
+        "statusValue": 1,
+        "propertyFields": [
+          "track_id",
+          "status",
+          "imm_mu_static",
+          "imm_mu_cv",
+          "source_platform",
+          "tentative_hits",
+          "last_det_seq",
+          "last_det_bbox_index"
+        ],
+        "matchValue": 16
+      }
+    }
+  },
+  {
+    "inputTopic": "/active_tracks",
+    "outputTopic": "/active_tracks/17",
+    "outputSchemaName": "foxglove_msgs/msg/LocationFix",
+    "op": {
+      "kind": "location_fix_select",
+      "select": {
+        "arrayPath": [
+          "tracks"
+        ],
+        "idField": "track_id",
+        "positionPath": [
+          "position"
+        ],
+        "velocityField": "velocity",
+        "covarianceField": "covariance",
+        "statusField": "status",
+        "statusValue": 1,
+        "propertyFields": [
+          "track_id",
+          "status",
+          "imm_mu_static",
+          "imm_mu_cv",
+          "source_platform",
+          "tentative_hits",
+          "last_det_seq",
+          "last_det_bbox_index"
+        ],
+        "matchValue": 17
+      }
+    }
+  },
+  {
+    "inputTopic": "/active_tracks",
+    "outputTopic": "/active_tracks/18",
+    "outputSchemaName": "foxglove_msgs/msg/LocationFix",
+    "op": {
+      "kind": "location_fix_select",
+      "select": {
+        "arrayPath": [
+          "tracks"
+        ],
+        "idField": "track_id",
+        "positionPath": [
+          "position"
+        ],
+        "velocityField": "velocity",
+        "covarianceField": "covariance",
+        "statusField": "status",
+        "statusValue": 1,
+        "propertyFields": [
+          "track_id",
+          "status",
+          "imm_mu_static",
+          "imm_mu_cv",
+          "source_platform",
+          "tentative_hits",
+          "last_det_seq",
+          "last_det_bbox_index"
+        ],
+        "matchValue": 18
+      }
+    }
+  },
+  {
+    "inputTopic": "/active_tracks",
+    "outputTopic": "/active_tracks/19",
+    "outputSchemaName": "foxglove_msgs/msg/LocationFix",
+    "op": {
+      "kind": "location_fix_select",
+      "select": {
+        "arrayPath": [
+          "tracks"
+        ],
+        "idField": "track_id",
+        "positionPath": [
+          "position"
+        ],
+        "velocityField": "velocity",
+        "covarianceField": "covariance",
+        "statusField": "status",
+        "statusValue": 1,
+        "propertyFields": [
+          "track_id",
+          "status",
+          "imm_mu_static",
+          "imm_mu_cv",
+          "source_platform",
+          "tentative_hits",
+          "last_det_seq",
+          "last_det_bbox_index"
+        ],
+        "matchValue": 19
+      }
+    }
+  },
+  {
+    "inputTopic": "/active_tracks",
+    "outputTopic": "/active_tracks/20",
+    "outputSchemaName": "foxglove_msgs/msg/LocationFix",
+    "op": {
+      "kind": "location_fix_select",
+      "select": {
+        "arrayPath": [
+          "tracks"
+        ],
+        "idField": "track_id",
+        "positionPath": [
+          "position"
+        ],
+        "velocityField": "velocity",
+        "covarianceField": "covariance",
+        "statusField": "status",
+        "statusValue": 1,
+        "propertyFields": [
+          "track_id",
+          "status",
+          "imm_mu_static",
+          "imm_mu_cv",
+          "source_platform",
+          "tentative_hits",
+          "last_det_seq",
+          "last_det_bbox_index"
+        ],
+        "matchValue": 20
+      }
+    }
+  },
+  {
+    "inputTopic": "/active_tracks",
+    "outputTopic": "/active_tracks/21",
+    "outputSchemaName": "foxglove_msgs/msg/LocationFix",
+    "op": {
+      "kind": "location_fix_select",
+      "select": {
+        "arrayPath": [
+          "tracks"
+        ],
+        "idField": "track_id",
+        "positionPath": [
+          "position"
+        ],
+        "velocityField": "velocity",
+        "covarianceField": "covariance",
+        "statusField": "status",
+        "statusValue": 1,
+        "propertyFields": [
+          "track_id",
+          "status",
+          "imm_mu_static",
+          "imm_mu_cv",
+          "source_platform",
+          "tentative_hits",
+          "last_det_seq",
+          "last_det_bbox_index"
+        ],
+        "matchValue": 21
+      }
+    }
+  },
+  {
+    "inputTopic": "/active_tracks",
+    "outputTopic": "/active_tracks/22",
+    "outputSchemaName": "foxglove_msgs/msg/LocationFix",
+    "op": {
+      "kind": "location_fix_select",
+      "select": {
+        "arrayPath": [
+          "tracks"
+        ],
+        "idField": "track_id",
+        "positionPath": [
+          "position"
+        ],
+        "velocityField": "velocity",
+        "covarianceField": "covariance",
+        "statusField": "status",
+        "statusValue": 1,
+        "propertyFields": [
+          "track_id",
+          "status",
+          "imm_mu_static",
+          "imm_mu_cv",
+          "source_platform",
+          "tentative_hits",
+          "last_det_seq",
+          "last_det_bbox_index"
+        ],
+        "matchValue": 22
+      }
+    }
+  },
+  {
+    "inputTopic": "/active_tracks",
+    "outputTopic": "/active_tracks/23",
+    "outputSchemaName": "foxglove_msgs/msg/LocationFix",
+    "op": {
+      "kind": "location_fix_select",
+      "select": {
+        "arrayPath": [
+          "tracks"
+        ],
+        "idField": "track_id",
+        "positionPath": [
+          "position"
+        ],
+        "velocityField": "velocity",
+        "covarianceField": "covariance",
+        "statusField": "status",
+        "statusValue": 1,
+        "propertyFields": [
+          "track_id",
+          "status",
+          "imm_mu_static",
+          "imm_mu_cv",
+          "source_platform",
+          "tentative_hits",
+          "last_det_seq",
+          "last_det_bbox_index"
+        ],
+        "matchValue": 23
+      }
+    }
+  },
+  {
+    "inputTopic": "/active_tracks",
+    "outputTopic": "/active_tracks/24",
+    "outputSchemaName": "foxglove_msgs/msg/LocationFix",
+    "op": {
+      "kind": "location_fix_select",
+      "select": {
+        "arrayPath": [
+          "tracks"
+        ],
+        "idField": "track_id",
+        "positionPath": [
+          "position"
+        ],
+        "velocityField": "velocity",
+        "covarianceField": "covariance",
+        "statusField": "status",
+        "statusValue": 1,
+        "propertyFields": [
+          "track_id",
+          "status",
+          "imm_mu_static",
+          "imm_mu_cv",
+          "source_platform",
+          "tentative_hits",
+          "last_det_seq",
+          "last_det_bbox_index"
+        ],
+        "matchValue": 24
+      }
+    }
+  },
+  {
+    "inputTopic": "/active_tracks",
+    "outputTopic": "/active_tracks/25",
+    "outputSchemaName": "foxglove_msgs/msg/LocationFix",
+    "op": {
+      "kind": "location_fix_select",
+      "select": {
+        "arrayPath": [
+          "tracks"
+        ],
+        "idField": "track_id",
+        "positionPath": [
+          "position"
+        ],
+        "velocityField": "velocity",
+        "covarianceField": "covariance",
+        "statusField": "status",
+        "statusValue": 1,
+        "propertyFields": [
+          "track_id",
+          "status",
+          "imm_mu_static",
+          "imm_mu_cv",
+          "source_platform",
+          "tentative_hits",
+          "last_det_seq",
+          "last_det_bbox_index"
+        ],
+        "matchValue": 25
+      }
+    }
+  },
+  {
+    "inputTopic": "/active_tracks",
+    "outputTopic": "/active_tracks/26",
+    "outputSchemaName": "foxglove_msgs/msg/LocationFix",
+    "op": {
+      "kind": "location_fix_select",
+      "select": {
+        "arrayPath": [
+          "tracks"
+        ],
+        "idField": "track_id",
+        "positionPath": [
+          "position"
+        ],
+        "velocityField": "velocity",
+        "covarianceField": "covariance",
+        "statusField": "status",
+        "statusValue": 1,
+        "propertyFields": [
+          "track_id",
+          "status",
+          "imm_mu_static",
+          "imm_mu_cv",
+          "source_platform",
+          "tentative_hits",
+          "last_det_seq",
+          "last_det_bbox_index"
+        ],
+        "matchValue": 26
+      }
+    }
+  },
+  {
+    "inputTopic": "/active_tracks",
+    "outputTopic": "/active_tracks/27",
+    "outputSchemaName": "foxglove_msgs/msg/LocationFix",
+    "op": {
+      "kind": "location_fix_select",
+      "select": {
+        "arrayPath": [
+          "tracks"
+        ],
+        "idField": "track_id",
+        "positionPath": [
+          "position"
+        ],
+        "velocityField": "velocity",
+        "covarianceField": "covariance",
+        "statusField": "status",
+        "statusValue": 1,
+        "propertyFields": [
+          "track_id",
+          "status",
+          "imm_mu_static",
+          "imm_mu_cv",
+          "source_platform",
+          "tentative_hits",
+          "last_det_seq",
+          "last_det_bbox_index"
+        ],
+        "matchValue": 27
+      }
+    }
+  },
+  {
+    "inputTopic": "/active_tracks",
+    "outputTopic": "/active_tracks/28",
+    "outputSchemaName": "foxglove_msgs/msg/LocationFix",
+    "op": {
+      "kind": "location_fix_select",
+      "select": {
+        "arrayPath": [
+          "tracks"
+        ],
+        "idField": "track_id",
+        "positionPath": [
+          "position"
+        ],
+        "velocityField": "velocity",
+        "covarianceField": "covariance",
+        "statusField": "status",
+        "statusValue": 1,
+        "propertyFields": [
+          "track_id",
+          "status",
+          "imm_mu_static",
+          "imm_mu_cv",
+          "source_platform",
+          "tentative_hits",
+          "last_det_seq",
+          "last_det_bbox_index"
+        ],
+        "matchValue": 28
+      }
+    }
+  },
+  {
+    "inputTopic": "/active_tracks",
+    "outputTopic": "/active_tracks/29",
+    "outputSchemaName": "foxglove_msgs/msg/LocationFix",
+    "op": {
+      "kind": "location_fix_select",
+      "select": {
+        "arrayPath": [
+          "tracks"
+        ],
+        "idField": "track_id",
+        "positionPath": [
+          "position"
+        ],
+        "velocityField": "velocity",
+        "covarianceField": "covariance",
+        "statusField": "status",
+        "statusValue": 1,
+        "propertyFields": [
+          "track_id",
+          "status",
+          "imm_mu_static",
+          "imm_mu_cv",
+          "source_platform",
+          "tentative_hits",
+          "last_det_seq",
+          "last_det_bbox_index"
+        ],
+        "matchValue": 29
+      }
+    }
+  },
+  {
+    "inputTopic": "/active_tracks",
+    "outputTopic": "/active_tracks/30",
+    "outputSchemaName": "foxglove_msgs/msg/LocationFix",
+    "op": {
+      "kind": "location_fix_select",
+      "select": {
+        "arrayPath": [
+          "tracks"
+        ],
+        "idField": "track_id",
+        "positionPath": [
+          "position"
+        ],
+        "velocityField": "velocity",
+        "covarianceField": "covariance",
+        "statusField": "status",
+        "statusValue": 1,
+        "propertyFields": [
+          "track_id",
+          "status",
+          "imm_mu_static",
+          "imm_mu_cv",
+          "source_platform",
+          "tentative_hits",
+          "last_det_seq",
+          "last_det_bbox_index"
+        ],
+        "matchValue": 30
+      }
+    }
+  },
+  {
+    "inputTopic": "/active_tracks",
+    "outputTopic": "/active_tracks/31",
+    "outputSchemaName": "foxglove_msgs/msg/LocationFix",
+    "op": {
+      "kind": "location_fix_select",
+      "select": {
+        "arrayPath": [
+          "tracks"
+        ],
+        "idField": "track_id",
+        "positionPath": [
+          "position"
+        ],
+        "velocityField": "velocity",
+        "covarianceField": "covariance",
+        "statusField": "status",
+        "statusValue": 1,
+        "propertyFields": [
+          "track_id",
+          "status",
+          "imm_mu_static",
+          "imm_mu_cv",
+          "source_platform",
+          "tentative_hits",
+          "last_det_seq",
+          "last_det_bbox_index"
+        ],
+        "matchValue": 31
+      }
+    }
+  },
+  {
+    "inputTopic": "/active_tracks",
+    "outputTopic": "/active_tracks/32",
+    "outputSchemaName": "foxglove_msgs/msg/LocationFix",
+    "op": {
+      "kind": "location_fix_select",
+      "select": {
+        "arrayPath": [
+          "tracks"
+        ],
+        "idField": "track_id",
+        "positionPath": [
+          "position"
+        ],
+        "velocityField": "velocity",
+        "covarianceField": "covariance",
+        "statusField": "status",
+        "statusValue": 1,
+        "propertyFields": [
+          "track_id",
+          "status",
+          "imm_mu_static",
+          "imm_mu_cv",
+          "source_platform",
+          "tentative_hits",
+          "last_det_seq",
+          "last_det_bbox_index"
+        ],
+        "matchValue": 32
+      }
+    }
+  },
+  {
+    "inputTopic": "/active_tracks",
+    "outputTopic": "/active_tracks/33",
+    "outputSchemaName": "foxglove_msgs/msg/LocationFix",
+    "op": {
+      "kind": "location_fix_select",
+      "select": {
+        "arrayPath": [
+          "tracks"
+        ],
+        "idField": "track_id",
+        "positionPath": [
+          "position"
+        ],
+        "velocityField": "velocity",
+        "covarianceField": "covariance",
+        "statusField": "status",
+        "statusValue": 1,
+        "propertyFields": [
+          "track_id",
+          "status",
+          "imm_mu_static",
+          "imm_mu_cv",
+          "source_platform",
+          "tentative_hits",
+          "last_det_seq",
+          "last_det_bbox_index"
+        ],
+        "matchValue": 33
+      }
+    }
+  },
+  {
+    "inputTopic": "/active_tracks",
+    "outputTopic": "/active_tracks/34",
+    "outputSchemaName": "foxglove_msgs/msg/LocationFix",
+    "op": {
+      "kind": "location_fix_select",
+      "select": {
+        "arrayPath": [
+          "tracks"
+        ],
+        "idField": "track_id",
+        "positionPath": [
+          "position"
+        ],
+        "velocityField": "velocity",
+        "covarianceField": "covariance",
+        "statusField": "status",
+        "statusValue": 1,
+        "propertyFields": [
+          "track_id",
+          "status",
+          "imm_mu_static",
+          "imm_mu_cv",
+          "source_platform",
+          "tentative_hits",
+          "last_det_seq",
+          "last_det_bbox_index"
+        ],
+        "matchValue": 34
+      }
+    }
+  },
+  {
+    "inputTopic": "/active_tracks",
+    "outputTopic": "/active_tracks/35",
+    "outputSchemaName": "foxglove_msgs/msg/LocationFix",
+    "op": {
+      "kind": "location_fix_select",
+      "select": {
+        "arrayPath": [
+          "tracks"
+        ],
+        "idField": "track_id",
+        "positionPath": [
+          "position"
+        ],
+        "velocityField": "velocity",
+        "covarianceField": "covariance",
+        "statusField": "status",
+        "statusValue": 1,
+        "propertyFields": [
+          "track_id",
+          "status",
+          "imm_mu_static",
+          "imm_mu_cv",
+          "source_platform",
+          "tentative_hits",
+          "last_det_seq",
+          "last_det_bbox_index"
+        ],
+        "matchValue": 35
+      }
+    }
+  },
+  {
+    "inputTopic": "/active_tracks",
+    "outputTopic": "/active_tracks/36",
+    "outputSchemaName": "foxglove_msgs/msg/LocationFix",
+    "op": {
+      "kind": "location_fix_select",
+      "select": {
+        "arrayPath": [
+          "tracks"
+        ],
+        "idField": "track_id",
+        "positionPath": [
+          "position"
+        ],
+        "velocityField": "velocity",
+        "covarianceField": "covariance",
+        "statusField": "status",
+        "statusValue": 1,
+        "propertyFields": [
+          "track_id",
+          "status",
+          "imm_mu_static",
+          "imm_mu_cv",
+          "source_platform",
+          "tentative_hits",
+          "last_det_seq",
+          "last_det_bbox_index"
+        ],
+        "matchValue": 36
+      }
+    }
+  },
+  {
+    "inputTopic": "/active_tracks",
+    "outputTopic": "/active_tracks/37",
+    "outputSchemaName": "foxglove_msgs/msg/LocationFix",
+    "op": {
+      "kind": "location_fix_select",
+      "select": {
+        "arrayPath": [
+          "tracks"
+        ],
+        "idField": "track_id",
+        "positionPath": [
+          "position"
+        ],
+        "velocityField": "velocity",
+        "covarianceField": "covariance",
+        "statusField": "status",
+        "statusValue": 1,
+        "propertyFields": [
+          "track_id",
+          "status",
+          "imm_mu_static",
+          "imm_mu_cv",
+          "source_platform",
+          "tentative_hits",
+          "last_det_seq",
+          "last_det_bbox_index"
+        ],
+        "matchValue": 37
+      }
+    }
+  },
+  {
+    "inputTopic": "/active_tracks",
+    "outputTopic": "/active_tracks/38",
+    "outputSchemaName": "foxglove_msgs/msg/LocationFix",
+    "op": {
+      "kind": "location_fix_select",
+      "select": {
+        "arrayPath": [
+          "tracks"
+        ],
+        "idField": "track_id",
+        "positionPath": [
+          "position"
+        ],
+        "velocityField": "velocity",
+        "covarianceField": "covariance",
+        "statusField": "status",
+        "statusValue": 1,
+        "propertyFields": [
+          "track_id",
+          "status",
+          "imm_mu_static",
+          "imm_mu_cv",
+          "source_platform",
+          "tentative_hits",
+          "last_det_seq",
+          "last_det_bbox_index"
+        ],
+        "matchValue": 38
+      }
+    }
+  },
+  {
+    "inputTopic": "/active_tracks",
+    "outputTopic": "/active_tracks/39",
+    "outputSchemaName": "foxglove_msgs/msg/LocationFix",
+    "op": {
+      "kind": "location_fix_select",
+      "select": {
+        "arrayPath": [
+          "tracks"
+        ],
+        "idField": "track_id",
+        "positionPath": [
+          "position"
+        ],
+        "velocityField": "velocity",
+        "covarianceField": "covariance",
+        "statusField": "status",
+        "statusValue": 1,
+        "propertyFields": [
+          "track_id",
+          "status",
+          "imm_mu_static",
+          "imm_mu_cv",
+          "source_platform",
+          "tentative_hits",
+          "last_det_seq",
+          "last_det_bbox_index"
+        ],
+        "matchValue": 39
+      }
+    }
+  },
+  {
+    "inputTopic": "/active_tracks",
+    "outputTopic": "/active_tracks/40",
+    "outputSchemaName": "foxglove_msgs/msg/LocationFix",
+    "op": {
+      "kind": "location_fix_select",
+      "select": {
+        "arrayPath": [
+          "tracks"
+        ],
+        "idField": "track_id",
+        "positionPath": [
+          "position"
+        ],
+        "velocityField": "velocity",
+        "covarianceField": "covariance",
+        "statusField": "status",
+        "statusValue": 1,
+        "propertyFields": [
+          "track_id",
+          "status",
+          "imm_mu_static",
+          "imm_mu_cv",
+          "source_platform",
+          "tentative_hits",
+          "last_det_seq",
+          "last_det_bbox_index"
+        ],
+        "matchValue": 40
+      }
+    }
+  },
+  {
+    "inputTopic": "/active_tracks",
+    "outputTopic": "/active_tracks/41",
+    "outputSchemaName": "foxglove_msgs/msg/LocationFix",
+    "op": {
+      "kind": "location_fix_select",
+      "select": {
+        "arrayPath": [
+          "tracks"
+        ],
+        "idField": "track_id",
+        "positionPath": [
+          "position"
+        ],
+        "velocityField": "velocity",
+        "covarianceField": "covariance",
+        "statusField": "status",
+        "statusValue": 1,
+        "propertyFields": [
+          "track_id",
+          "status",
+          "imm_mu_static",
+          "imm_mu_cv",
+          "source_platform",
+          "tentative_hits",
+          "last_det_seq",
+          "last_det_bbox_index"
+        ],
+        "matchValue": 41
+      }
+    }
+  },
+  {
+    "inputTopic": "/active_tracks",
+    "outputTopic": "/active_tracks/42",
+    "outputSchemaName": "foxglove_msgs/msg/LocationFix",
+    "op": {
+      "kind": "location_fix_select",
+      "select": {
+        "arrayPath": [
+          "tracks"
+        ],
+        "idField": "track_id",
+        "positionPath": [
+          "position"
+        ],
+        "velocityField": "velocity",
+        "covarianceField": "covariance",
+        "statusField": "status",
+        "statusValue": 1,
+        "propertyFields": [
+          "track_id",
+          "status",
+          "imm_mu_static",
+          "imm_mu_cv",
+          "source_platform",
+          "tentative_hits",
+          "last_det_seq",
+          "last_det_bbox_index"
+        ],
+        "matchValue": 42
+      }
+    }
+  },
+  {
+    "inputTopic": "/active_tracks",
+    "outputTopic": "/active_tracks/43",
+    "outputSchemaName": "foxglove_msgs/msg/LocationFix",
+    "op": {
+      "kind": "location_fix_select",
+      "select": {
+        "arrayPath": [
+          "tracks"
+        ],
+        "idField": "track_id",
+        "positionPath": [
+          "position"
+        ],
+        "velocityField": "velocity",
+        "covarianceField": "covariance",
+        "statusField": "status",
+        "statusValue": 1,
+        "propertyFields": [
+          "track_id",
+          "status",
+          "imm_mu_static",
+          "imm_mu_cv",
+          "source_platform",
+          "tentative_hits",
+          "last_det_seq",
+          "last_det_bbox_index"
+        ],
+        "matchValue": 43
+      }
+    }
+  },
+  {
+    "inputTopic": "/active_tracks",
+    "outputTopic": "/active_tracks/44",
+    "outputSchemaName": "foxglove_msgs/msg/LocationFix",
+    "op": {
+      "kind": "location_fix_select",
+      "select": {
+        "arrayPath": [
+          "tracks"
+        ],
+        "idField": "track_id",
+        "positionPath": [
+          "position"
+        ],
+        "velocityField": "velocity",
+        "covarianceField": "covariance",
+        "statusField": "status",
+        "statusValue": 1,
+        "propertyFields": [
+          "track_id",
+          "status",
+          "imm_mu_static",
+          "imm_mu_cv",
+          "source_platform",
+          "tentative_hits",
+          "last_det_seq",
+          "last_det_bbox_index"
+        ],
+        "matchValue": 44
+      }
+    }
+  },
+  {
+    "inputTopic": "/active_tracks",
+    "outputTopic": "/active_tracks/45",
+    "outputSchemaName": "foxglove_msgs/msg/LocationFix",
+    "op": {
+      "kind": "location_fix_select",
+      "select": {
+        "arrayPath": [
+          "tracks"
+        ],
+        "idField": "track_id",
+        "positionPath": [
+          "position"
+        ],
+        "velocityField": "velocity",
+        "covarianceField": "covariance",
+        "statusField": "status",
+        "statusValue": 1,
+        "propertyFields": [
+          "track_id",
+          "status",
+          "imm_mu_static",
+          "imm_mu_cv",
+          "source_platform",
+          "tentative_hits",
+          "last_det_seq",
+          "last_det_bbox_index"
+        ],
+        "matchValue": 45
+      }
+    }
+  },
+  {
+    "inputTopic": "/active_tracks",
+    "outputTopic": "/active_tracks/46",
+    "outputSchemaName": "foxglove_msgs/msg/LocationFix",
+    "op": {
+      "kind": "location_fix_select",
+      "select": {
+        "arrayPath": [
+          "tracks"
+        ],
+        "idField": "track_id",
+        "positionPath": [
+          "position"
+        ],
+        "velocityField": "velocity",
+        "covarianceField": "covariance",
+        "statusField": "status",
+        "statusValue": 1,
+        "propertyFields": [
+          "track_id",
+          "status",
+          "imm_mu_static",
+          "imm_mu_cv",
+          "source_platform",
+          "tentative_hits",
+          "last_det_seq",
+          "last_det_bbox_index"
+        ],
+        "matchValue": 46
+      }
+    }
+  },
+  {
+    "inputTopic": "/active_tracks",
+    "outputTopic": "/active_tracks/47",
+    "outputSchemaName": "foxglove_msgs/msg/LocationFix",
+    "op": {
+      "kind": "location_fix_select",
+      "select": {
+        "arrayPath": [
+          "tracks"
+        ],
+        "idField": "track_id",
+        "positionPath": [
+          "position"
+        ],
+        "velocityField": "velocity",
+        "covarianceField": "covariance",
+        "statusField": "status",
+        "statusValue": 1,
+        "propertyFields": [
+          "track_id",
+          "status",
+          "imm_mu_static",
+          "imm_mu_cv",
+          "source_platform",
+          "tentative_hits",
+          "last_det_seq",
+          "last_det_bbox_index"
+        ],
+        "matchValue": 47
+      }
+    }
+  },
+  {
+    "inputTopic": "/active_tracks",
+    "outputTopic": "/active_tracks/48",
+    "outputSchemaName": "foxglove_msgs/msg/LocationFix",
+    "op": {
+      "kind": "location_fix_select",
+      "select": {
+        "arrayPath": [
+          "tracks"
+        ],
+        "idField": "track_id",
+        "positionPath": [
+          "position"
+        ],
+        "velocityField": "velocity",
+        "covarianceField": "covariance",
+        "statusField": "status",
+        "statusValue": 1,
+        "propertyFields": [
+          "track_id",
+          "status",
+          "imm_mu_static",
+          "imm_mu_cv",
+          "source_platform",
+          "tentative_hits",
+          "last_det_seq",
+          "last_det_bbox_index"
+        ],
+        "matchValue": 48
+      }
+    }
+  },
+  {
+    "inputTopic": "/active_tracks",
+    "outputTopic": "/active_tracks/49",
+    "outputSchemaName": "foxglove_msgs/msg/LocationFix",
+    "op": {
+      "kind": "location_fix_select",
+      "select": {
+        "arrayPath": [
+          "tracks"
+        ],
+        "idField": "track_id",
+        "positionPath": [
+          "position"
+        ],
+        "velocityField": "velocity",
+        "covarianceField": "covariance",
+        "statusField": "status",
+        "statusValue": 1,
+        "propertyFields": [
+          "track_id",
+          "status",
+          "imm_mu_static",
+          "imm_mu_cv",
+          "source_platform",
+          "tentative_hits",
+          "last_det_seq",
+          "last_det_bbox_index"
+        ],
+        "matchValue": 49
+      }
+    }
+  },
+  {
+    "inputTopic": "/active_tracks",
+    "outputTopic": "/active_tracks/50",
+    "outputSchemaName": "foxglove_msgs/msg/LocationFix",
+    "op": {
+      "kind": "location_fix_select",
+      "select": {
+        "arrayPath": [
+          "tracks"
+        ],
+        "idField": "track_id",
+        "positionPath": [
+          "position"
+        ],
+        "velocityField": "velocity",
+        "covarianceField": "covariance",
+        "statusField": "status",
+        "statusValue": 1,
+        "propertyFields": [
+          "track_id",
+          "status",
+          "imm_mu_static",
+          "imm_mu_cv",
+          "source_platform",
+          "tentative_hits",
+          "last_det_seq",
+          "last_det_bbox_index"
+        ],
+        "matchValue": 50
+      }
+    }
+  },
+  {
+    "inputTopic": "/active_tracks",
+    "outputTopic": "/active_tracks/51",
+    "outputSchemaName": "foxglove_msgs/msg/LocationFix",
+    "op": {
+      "kind": "location_fix_select",
+      "select": {
+        "arrayPath": [
+          "tracks"
+        ],
+        "idField": "track_id",
+        "positionPath": [
+          "position"
+        ],
+        "velocityField": "velocity",
+        "covarianceField": "covariance",
+        "statusField": "status",
+        "statusValue": 1,
+        "propertyFields": [
+          "track_id",
+          "status",
+          "imm_mu_static",
+          "imm_mu_cv",
+          "source_platform",
+          "tentative_hits",
+          "last_det_seq",
+          "last_det_bbox_index"
+        ],
+        "matchValue": 51
+      }
+    }
+  },
+  {
+    "inputTopic": "/active_tracks",
+    "outputTopic": "/active_tracks/52",
+    "outputSchemaName": "foxglove_msgs/msg/LocationFix",
+    "op": {
+      "kind": "location_fix_select",
+      "select": {
+        "arrayPath": [
+          "tracks"
+        ],
+        "idField": "track_id",
+        "positionPath": [
+          "position"
+        ],
+        "velocityField": "velocity",
+        "covarianceField": "covariance",
+        "statusField": "status",
+        "statusValue": 1,
+        "propertyFields": [
+          "track_id",
+          "status",
+          "imm_mu_static",
+          "imm_mu_cv",
+          "source_platform",
+          "tentative_hits",
+          "last_det_seq",
+          "last_det_bbox_index"
+        ],
+        "matchValue": 52
+      }
+    }
+  },
+  {
+    "inputTopic": "/active_tracks",
+    "outputTopic": "/active_tracks/53",
+    "outputSchemaName": "foxglove_msgs/msg/LocationFix",
+    "op": {
+      "kind": "location_fix_select",
+      "select": {
+        "arrayPath": [
+          "tracks"
+        ],
+        "idField": "track_id",
+        "positionPath": [
+          "position"
+        ],
+        "velocityField": "velocity",
+        "covarianceField": "covariance",
+        "statusField": "status",
+        "statusValue": 1,
+        "propertyFields": [
+          "track_id",
+          "status",
+          "imm_mu_static",
+          "imm_mu_cv",
+          "source_platform",
+          "tentative_hits",
+          "last_det_seq",
+          "last_det_bbox_index"
+        ],
+        "matchValue": 53
+      }
+    }
+  },
+  {
+    "inputTopic": "/active_tracks",
+    "outputTopic": "/active_tracks/54",
+    "outputSchemaName": "foxglove_msgs/msg/LocationFix",
+    "op": {
+      "kind": "location_fix_select",
+      "select": {
+        "arrayPath": [
+          "tracks"
+        ],
+        "idField": "track_id",
+        "positionPath": [
+          "position"
+        ],
+        "velocityField": "velocity",
+        "covarianceField": "covariance",
+        "statusField": "status",
+        "statusValue": 1,
+        "propertyFields": [
+          "track_id",
+          "status",
+          "imm_mu_static",
+          "imm_mu_cv",
+          "source_platform",
+          "tentative_hits",
+          "last_det_seq",
+          "last_det_bbox_index"
+        ],
+        "matchValue": 54
+      }
+    }
+  },
+  {
+    "inputTopic": "/active_tracks",
+    "outputTopic": "/active_tracks/55",
+    "outputSchemaName": "foxglove_msgs/msg/LocationFix",
+    "op": {
+      "kind": "location_fix_select",
+      "select": {
+        "arrayPath": [
+          "tracks"
+        ],
+        "idField": "track_id",
+        "positionPath": [
+          "position"
+        ],
+        "velocityField": "velocity",
+        "covarianceField": "covariance",
+        "statusField": "status",
+        "statusValue": 1,
+        "propertyFields": [
+          "track_id",
+          "status",
+          "imm_mu_static",
+          "imm_mu_cv",
+          "source_platform",
+          "tentative_hits",
+          "last_det_seq",
+          "last_det_bbox_index"
+        ],
+        "matchValue": 55
+      }
+    }
+  },
+  {
+    "inputTopic": "/active_tracks",
+    "outputTopic": "/active_tracks/56",
+    "outputSchemaName": "foxglove_msgs/msg/LocationFix",
+    "op": {
+      "kind": "location_fix_select",
+      "select": {
+        "arrayPath": [
+          "tracks"
+        ],
+        "idField": "track_id",
+        "positionPath": [
+          "position"
+        ],
+        "velocityField": "velocity",
+        "covarianceField": "covariance",
+        "statusField": "status",
+        "statusValue": 1,
+        "propertyFields": [
+          "track_id",
+          "status",
+          "imm_mu_static",
+          "imm_mu_cv",
+          "source_platform",
+          "tentative_hits",
+          "last_det_seq",
+          "last_det_bbox_index"
+        ],
+        "matchValue": 56
+      }
+    }
+  },
+  {
+    "inputTopic": "/active_tracks",
+    "outputTopic": "/active_tracks/57",
+    "outputSchemaName": "foxglove_msgs/msg/LocationFix",
+    "op": {
+      "kind": "location_fix_select",
+      "select": {
+        "arrayPath": [
+          "tracks"
+        ],
+        "idField": "track_id",
+        "positionPath": [
+          "position"
+        ],
+        "velocityField": "velocity",
+        "covarianceField": "covariance",
+        "statusField": "status",
+        "statusValue": 1,
+        "propertyFields": [
+          "track_id",
+          "status",
+          "imm_mu_static",
+          "imm_mu_cv",
+          "source_platform",
+          "tentative_hits",
+          "last_det_seq",
+          "last_det_bbox_index"
+        ],
+        "matchValue": 57
+      }
+    }
+  },
+  {
+    "inputTopic": "/active_tracks",
+    "outputTopic": "/active_tracks/58",
+    "outputSchemaName": "foxglove_msgs/msg/LocationFix",
+    "op": {
+      "kind": "location_fix_select",
+      "select": {
+        "arrayPath": [
+          "tracks"
+        ],
+        "idField": "track_id",
+        "positionPath": [
+          "position"
+        ],
+        "velocityField": "velocity",
+        "covarianceField": "covariance",
+        "statusField": "status",
+        "statusValue": 1,
+        "propertyFields": [
+          "track_id",
+          "status",
+          "imm_mu_static",
+          "imm_mu_cv",
+          "source_platform",
+          "tentative_hits",
+          "last_det_seq",
+          "last_det_bbox_index"
+        ],
+        "matchValue": 58
+      }
+    }
+  },
+  {
+    "inputTopic": "/active_tracks",
+    "outputTopic": "/active_tracks/59",
+    "outputSchemaName": "foxglove_msgs/msg/LocationFix",
+    "op": {
+      "kind": "location_fix_select",
+      "select": {
+        "arrayPath": [
+          "tracks"
+        ],
+        "idField": "track_id",
+        "positionPath": [
+          "position"
+        ],
+        "velocityField": "velocity",
+        "covarianceField": "covariance",
+        "statusField": "status",
+        "statusValue": 1,
+        "propertyFields": [
+          "track_id",
+          "status",
+          "imm_mu_static",
+          "imm_mu_cv",
+          "source_platform",
+          "tentative_hits",
+          "last_det_seq",
+          "last_det_bbox_index"
+        ],
+        "matchValue": 59
+      }
+    }
+  },
+  {
+    "inputTopic": "/active_tracks",
+    "outputTopic": "/active_tracks/60",
+    "outputSchemaName": "foxglove_msgs/msg/LocationFix",
+    "op": {
+      "kind": "location_fix_select",
+      "select": {
+        "arrayPath": [
+          "tracks"
+        ],
+        "idField": "track_id",
+        "positionPath": [
+          "position"
+        ],
+        "velocityField": "velocity",
+        "covarianceField": "covariance",
+        "statusField": "status",
+        "statusValue": 1,
+        "propertyFields": [
+          "track_id",
+          "status",
+          "imm_mu_static",
+          "imm_mu_cv",
+          "source_platform",
+          "tentative_hits",
+          "last_det_seq",
+          "last_det_bbox_index"
+        ],
+        "matchValue": 60
+      }
+    }
+  },
+  {
+    "inputTopic": "/active_tracks",
+    "outputTopic": "/active_tracks/61",
+    "outputSchemaName": "foxglove_msgs/msg/LocationFix",
+    "op": {
+      "kind": "location_fix_select",
+      "select": {
+        "arrayPath": [
+          "tracks"
+        ],
+        "idField": "track_id",
+        "positionPath": [
+          "position"
+        ],
+        "velocityField": "velocity",
+        "covarianceField": "covariance",
+        "statusField": "status",
+        "statusValue": 1,
+        "propertyFields": [
+          "track_id",
+          "status",
+          "imm_mu_static",
+          "imm_mu_cv",
+          "source_platform",
+          "tentative_hits",
+          "last_det_seq",
+          "last_det_bbox_index"
+        ],
+        "matchValue": 61
+      }
+    }
+  },
+  {
+    "inputTopic": "/active_tracks",
+    "outputTopic": "/active_tracks/62",
+    "outputSchemaName": "foxglove_msgs/msg/LocationFix",
+    "op": {
+      "kind": "location_fix_select",
+      "select": {
+        "arrayPath": [
+          "tracks"
+        ],
+        "idField": "track_id",
+        "positionPath": [
+          "position"
+        ],
+        "velocityField": "velocity",
+        "covarianceField": "covariance",
+        "statusField": "status",
+        "statusValue": 1,
+        "propertyFields": [
+          "track_id",
+          "status",
+          "imm_mu_static",
+          "imm_mu_cv",
+          "source_platform",
+          "tentative_hits",
+          "last_det_seq",
+          "last_det_bbox_index"
+        ],
+        "matchValue": 62
+      }
+    }
+  },
+  {
+    "inputTopic": "/active_tracks",
+    "outputTopic": "/active_tracks/63",
+    "outputSchemaName": "foxglove_msgs/msg/LocationFix",
+    "op": {
+      "kind": "location_fix_select",
+      "select": {
+        "arrayPath": [
+          "tracks"
+        ],
+        "idField": "track_id",
+        "positionPath": [
+          "position"
+        ],
+        "velocityField": "velocity",
+        "covarianceField": "covariance",
+        "statusField": "status",
+        "statusValue": 1,
+        "propertyFields": [
+          "track_id",
+          "status",
+          "imm_mu_static",
+          "imm_mu_cv",
+          "source_platform",
+          "tentative_hits",
+          "last_det_seq",
+          "last_det_bbox_index"
+        ],
+        "matchValue": 63
+      }
+    }
+  },
+  {
+    "inputTopic": "/active_tracks",
+    "outputTopic": "/active_tracks/active",
+    "outputSchemaName": "foxglove_msgs/msg/GeoJSON",
+    "op": {
+      "kind": "track_geojson",
+      "track": {
+        "arrayPath": [
+          "tracks"
+        ],
+        "idField": "track_id",
+        "positionPath": [
+          "position"
+        ],
+        "velocityField": "velocity",
+        "covarianceField": "covariance",
+        "statusField": "status",
+        "statusValue": 1,
+        "propertyFields": [
+          "track_id",
+          "status",
+          "imm_mu_static",
+          "imm_mu_cv",
+          "source_platform",
+          "tentative_hits",
+          "last_det_seq",
+          "last_det_bbox_index"
+        ]
+      }
+    }
+  },
+  {
+    "inputTopic": "/active_tracks",
+    "outputTopic": "/active_tracks/dormant",
+    "outputSchemaName": "foxglove_msgs/msg/GeoJSON",
+    "op": {
+      "kind": "track_geojson",
+      "track": {
+        "arrayPath": [
+          "tracks"
+        ],
+        "idField": "track_id",
+        "positionPath": [
+          "position"
+        ],
+        "velocityField": "velocity",
+        "covarianceField": "covariance",
+        "statusField": "status",
+        "statusValue": 2,
+        "propertyFields": [
+          "track_id",
+          "status",
+          "imm_mu_static",
+          "imm_mu_cv",
+          "source_platform",
+          "tentative_hits",
+          "last_det_seq",
+          "last_det_bbox_index"
+        ]
+      }
+    }
+  },
+  {
+    "inputTopic": "/active_tracks",
+    "outputTopic": "/active_tracks/inactive",
+    "outputSchemaName": "foxglove_msgs/msg/GeoJSON",
+    "op": {
+      "kind": "track_geojson",
+      "track": {
+        "arrayPath": [
+          "tracks"
+        ],
+        "idField": "track_id",
+        "positionPath": [
+          "position"
+        ],
+        "velocityField": "velocity",
+        "covarianceField": "covariance",
+        "statusField": "status",
+        "statusValue": 3,
+        "propertyFields": [
+          "track_id",
+          "status",
+          "imm_mu_static",
+          "imm_mu_cv",
+          "source_platform",
+          "tentative_hits",
+          "last_det_seq",
+          "last_det_bbox_index"
+        ]
+      }
+    }
+  },
+  {
+    "inputTopic": "/active_tracks",
+    "outputTopic": "/active_tracks/tentative",
+    "outputSchemaName": "foxglove_msgs/msg/GeoJSON",
+    "op": {
+      "kind": "track_geojson",
+      "track": {
+        "arrayPath": [
+          "tracks"
+        ],
+        "idField": "track_id",
+        "positionPath": [
+          "position"
+        ],
+        "velocityField": "velocity",
+        "covarianceField": "covariance",
+        "statusField": "status",
+        "statusValue": 0,
+        "propertyFields": [
+          "track_id",
+          "status",
+          "imm_mu_static",
+          "imm_mu_cv",
+          "source_platform",
+          "tentative_hits",
+          "last_det_seq",
+          "last_det_bbox_index"
+        ]
+      }
+    }
+  },
   {
     "inputTopic": "/uas1/target_locations",
     "outputTopic": "/uas1/target_locations/altimeter",
@@ -892,6 +3404,31 @@ export const TOPIC_CONVERTER_SPECS: readonly TopicConverterSpec[] =
           "label": "Rangefinder",
           "geometry": "point",
           "color": "#46f0f0",
+          "propertyFields": [
+            "data_source_id",
+            "use_for_assessment",
+            "detection_class",
+            "detection_confidence"
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "inputTopic": "/uas1/target_locations",
+    "outputTopic": "/uas1/target_locations/topo",
+    "outputSchemaName": "foxglove_msgs/msg/GeoJSON",
+    "op": {
+      "kind": "geojson",
+      "entries": [
+        {
+          "path": [
+            "uav_target_boxes",
+            "target_location_topo"
+          ],
+          "label": "Topo",
+          "geometry": "point",
+          "color": "#fabebe",
           "propertyFields": [
             "data_source_id",
             "use_for_assessment",
@@ -978,6 +3515,31 @@ export const TOPIC_CONVERTER_SPECS: readonly TopicConverterSpec[] =
     }
   },
   {
+    "inputTopic": "/uas1/tf_localization/localized",
+    "outputTopic": "/uas1/tf_localization/localized/topo",
+    "outputSchemaName": "foxglove_msgs/msg/GeoJSON",
+    "op": {
+      "kind": "geojson",
+      "entries": [
+        {
+          "path": [
+            "uav_target_boxes",
+            "target_location_topo"
+          ],
+          "label": "Topo",
+          "geometry": "point",
+          "color": "#fabebe",
+          "propertyFields": [
+            "data_source_id",
+            "use_for_assessment",
+            "detection_class",
+            "detection_confidence"
+          ]
+        }
+      ]
+    }
+  },
+  {
     "inputTopic": "/uas2/target_locations",
     "outputTopic": "/uas2/target_locations/altimeter",
     "outputSchemaName": "foxglove_msgs/msg/GeoJSON",
@@ -1042,6 +3604,31 @@ export const TOPIC_CONVERTER_SPECS: readonly TopicConverterSpec[] =
           "label": "Rangefinder",
           "geometry": "point",
           "color": "#46f0f0",
+          "propertyFields": [
+            "data_source_id",
+            "use_for_assessment",
+            "detection_class",
+            "detection_confidence"
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "inputTopic": "/uas2/target_locations",
+    "outputTopic": "/uas2/target_locations/topo",
+    "outputSchemaName": "foxglove_msgs/msg/GeoJSON",
+    "op": {
+      "kind": "geojson",
+      "entries": [
+        {
+          "path": [
+            "uav_target_boxes",
+            "target_location_topo"
+          ],
+          "label": "Topo",
+          "geometry": "point",
+          "color": "#fabebe",
           "propertyFields": [
             "data_source_id",
             "use_for_assessment",
@@ -1128,6 +3715,31 @@ export const TOPIC_CONVERTER_SPECS: readonly TopicConverterSpec[] =
     }
   },
   {
+    "inputTopic": "/uas2/tf_localization/localized",
+    "outputTopic": "/uas2/tf_localization/localized/topo",
+    "outputSchemaName": "foxglove_msgs/msg/GeoJSON",
+    "op": {
+      "kind": "geojson",
+      "entries": [
+        {
+          "path": [
+            "uav_target_boxes",
+            "target_location_topo"
+          ],
+          "label": "Topo",
+          "geometry": "point",
+          "color": "#fabebe",
+          "propertyFields": [
+            "data_source_id",
+            "use_for_assessment",
+            "detection_class",
+            "detection_confidence"
+          ]
+        }
+      ]
+    }
+  },
+  {
     "inputTopic": "/uas3/target_locations",
     "outputTopic": "/uas3/target_locations/altimeter",
     "outputSchemaName": "foxglove_msgs/msg/GeoJSON",
@@ -1192,6 +3804,31 @@ export const TOPIC_CONVERTER_SPECS: readonly TopicConverterSpec[] =
           "label": "Rangefinder",
           "geometry": "point",
           "color": "#46f0f0",
+          "propertyFields": [
+            "data_source_id",
+            "use_for_assessment",
+            "detection_class",
+            "detection_confidence"
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "inputTopic": "/uas3/target_locations",
+    "outputTopic": "/uas3/target_locations/topo",
+    "outputSchemaName": "foxglove_msgs/msg/GeoJSON",
+    "op": {
+      "kind": "geojson",
+      "entries": [
+        {
+          "path": [
+            "uav_target_boxes",
+            "target_location_topo"
+          ],
+          "label": "Topo",
+          "geometry": "point",
+          "color": "#fabebe",
           "propertyFields": [
             "data_source_id",
             "use_for_assessment",
@@ -1278,6 +3915,31 @@ export const TOPIC_CONVERTER_SPECS: readonly TopicConverterSpec[] =
     }
   },
   {
+    "inputTopic": "/uas3/tf_localization/localized",
+    "outputTopic": "/uas3/tf_localization/localized/topo",
+    "outputSchemaName": "foxglove_msgs/msg/GeoJSON",
+    "op": {
+      "kind": "geojson",
+      "entries": [
+        {
+          "path": [
+            "uav_target_boxes",
+            "target_location_topo"
+          ],
+          "label": "Topo",
+          "geometry": "point",
+          "color": "#fabebe",
+          "propertyFields": [
+            "data_source_id",
+            "use_for_assessment",
+            "detection_class",
+            "detection_confidence"
+          ]
+        }
+      ]
+    }
+  },
+  {
     "inputTopic": "/uas4/target_locations",
     "outputTopic": "/uas4/target_locations/altimeter",
     "outputSchemaName": "foxglove_msgs/msg/GeoJSON",
@@ -1353,6 +4015,31 @@ export const TOPIC_CONVERTER_SPECS: readonly TopicConverterSpec[] =
     }
   },
   {
+    "inputTopic": "/uas4/target_locations",
+    "outputTopic": "/uas4/target_locations/topo",
+    "outputSchemaName": "foxglove_msgs/msg/GeoJSON",
+    "op": {
+      "kind": "geojson",
+      "entries": [
+        {
+          "path": [
+            "uav_target_boxes",
+            "target_location_topo"
+          ],
+          "label": "Topo",
+          "geometry": "point",
+          "color": "#fabebe",
+          "propertyFields": [
+            "data_source_id",
+            "use_for_assessment",
+            "detection_class",
+            "detection_confidence"
+          ]
+        }
+      ]
+    }
+  },
+  {
     "inputTopic": "/uas4/tf_localization/localized",
     "outputTopic": "/uas4/tf_localization/localized/altimeter",
     "outputSchemaName": "foxglove_msgs/msg/GeoJSON",
@@ -1417,6 +4104,31 @@ export const TOPIC_CONVERTER_SPECS: readonly TopicConverterSpec[] =
           "label": "Rangefinder",
           "geometry": "point",
           "color": "#46f0f0",
+          "propertyFields": [
+            "data_source_id",
+            "use_for_assessment",
+            "detection_class",
+            "detection_confidence"
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "inputTopic": "/uas4/tf_localization/localized",
+    "outputTopic": "/uas4/tf_localization/localized/topo",
+    "outputSchemaName": "foxglove_msgs/msg/GeoJSON",
+    "op": {
+      "kind": "geojson",
+      "entries": [
+        {
+          "path": [
+            "uav_target_boxes",
+            "target_location_topo"
+          ],
+          "label": "Topo",
+          "geometry": "point",
+          "color": "#fabebe",
           "propertyFields": [
             "data_source_id",
             "use_for_assessment",
