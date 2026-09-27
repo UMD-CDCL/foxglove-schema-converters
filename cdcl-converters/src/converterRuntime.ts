@@ -294,6 +294,21 @@ function rootStamp(message: unknown, event: Immutable<MessageEvent>): FoxgloveTi
 }
 
 /**
+ * Timestamp for outputs that are tied to an embedded image. Some historical
+ * TargetHistoryArray messages have a parent header and source_img header that
+ * are not identical. Foxglove syncs against the timestamp on the displayed
+ * image, so all image-derived outputs must use source_img.header.stamp.
+ */
+function imageStamp(message: unknown, event: Immutable<MessageEvent>): FoxgloveTime {
+  const root = asObject(message);
+  const sourceImage = asObject(root?.source_img);
+  const sourceImageHeader = asObject(sourceImage?.header);
+  const sourceImageStamp = timeFromStampObject(sourceImageHeader?.stamp);
+
+  return sourceImageStamp ?? rootStamp(message, event);
+}
+
+/**
  * Header stamps must carry `nsec`, not just the ROS 2 `nanosec` spelling.
  *
  * Foxglove's ROS 2 deserializer emits `builtin_interfaces/Time` as `{sec, nsec}`,
@@ -533,7 +548,7 @@ function convertImage(
   const sourceHeader = asObject(source.header);
   const header = {
     frame_id: toText(sourceHeader?.frame_id),
-    stamp: toRosTime(rootStamp(message, event)),
+    stamp: toRosTime(imageStamp(message, event)),
   };
 
   if (classified.kind === "compressed") {
@@ -1434,7 +1449,7 @@ function convertImageAnnotations(
   event: Immutable<MessageEvent>,
   entries: readonly AnnotationEntry[],
 ): AnyMessage | undefined {
-  const timestamp = rootStamp(message, event);
+  const timestamp = imageStamp(message, event);
   const points: AnyMessage[] = [];
   const texts: AnyMessage[] = [];
 
@@ -1474,7 +1489,10 @@ function convertImageAnnotations(
   // Emit an empty set rather than nothing when a message has no usable boxes.
   // Returning undefined suppresses the message entirely, and Foxglove keeps the
   // previous frame's boxes on screen; an empty ImageAnnotations clears them.
-  return { circles: [], points, texts };
+  // Image panel synchronization uses the root-level timestamp when present.
+  // Keep it identical to the timestamp used by the extracted image so the
+  // annotation topic can be matched even when there are no annotations yet.
+  return { timestamp, circles: [], points, texts };
 }
 
 // ---------------------------------------------------------------------------

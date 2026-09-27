@@ -89,9 +89,10 @@ def extension_roots(override: str | None) -> list[Path]:
 
     roots = [DESKTOP_EXT_ROOT]
 
-    # snapd always symlinks `current` to the active revision. A plain directory
-    # is a leftover from an uninstalled snap, so writing there would be a no-op.
-    if SNAP_HOME.is_symlink():
+    # Depending on how the Snap was installed, `current` may be either a
+    # revision symlink or a real directory. In both cases Foxglove reads this
+    # extension root when the Snap is active.
+    if SNAP_HOME.is_dir():
         roots.append(SNAP_EXT_ROOT)
 
     return roots
